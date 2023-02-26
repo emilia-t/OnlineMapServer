@@ -1,7 +1,7 @@
-logs
+/logs
 .buildpath
 .project
 .settings
 .idea
 .DS_Store
-config
+/config
