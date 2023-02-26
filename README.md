@@ -7,7 +7,7 @@ Start setting
 
 set your mysql config<br /> 
 
-### 1.Create a file named "config" in the root directory 
+### 1.Create a file named "config" in the top directory 
 sudo mkdir config<br /> 
 
 ### 2.Create the following php file
