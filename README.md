@@ -16,15 +16,15 @@ sudo touch RSA_DersJx8t8F.php
 sudo touch SMTP_U4tqjLYxNw.php
 
 ### 3.Configure MySQL account
-sudo vim Mysql_OZ4pTiFHZf.php
+sudo vim Mysql_OZ4pTiFHZf.php<br /> 
 
-insert:
+insert:<br /> 
 
-$mysql_public_server_address="localhost";//Database address
-$mysql_public_user="map_edit";//Public map database account
-$mysql_public_password="password";//account password
-$mysql_public_db_name="map";//The name of the map database, If there is no map database, we will create it automatically
-$mysql_root_password="password";//The password of the root account will only be used when creating the database. You can change this value to an empty string after ensuring that the map database has no problems
+$mysql_public_server_address="localhost";//Database address<br /> 
+$mysql_public_user="map_edit";//Public map database account<br /> 
+$mysql_public_password="password";//account password<br /> 
+$mysql_public_db_name="map";//The name of the map database, If there is no map database, we will create it automatically<br /> 
+$mysql_root_password="password";//The password of the root account will only be used when creating the database. You can change this value to an empty string after ensuring that the map database has no problems<br /> 
 
 ### 4.Configure RSA, This is used for encrypted communication
 sudo vim RSA_DersJx8t8F.php
