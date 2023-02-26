@@ -38,6 +38,8 @@ require './class/QualityInspectionRoom.php';
 require './class/JsonDisposalTool.php';
 //创建数据库
 require './api/Other_createMysqlDataBase.php';
+//地图数据库编辑工具
+require './class/MapDataBaseEdit.php';
 /**
 </external-program>
  **/
@@ -47,6 +49,7 @@ require './api/Other_createMysqlDataBase.php';
 **/
 $newQIR=new QualityInspectionRoom(false);
 $newJDT=new JsonDisposalTool();
+$newMDBE=new MapDataBaseEdit();
 /**
 </class>
 **/
@@ -89,7 +92,7 @@ ETX;
 }
 //收到客户端消息
 function handle_message($connection,$data){
-    global $theData,$theConfig,$socket_worker,$newQIR,$newJDT;
+    global $theData,$theConfig,$socket_worker,$newQIR,$newJDT,$newMDBE;
     //1.校验json格式是否正确
     $jsonData=checkJsonData($data);
     //2.检测是否为数组类型
@@ -220,20 +223,57 @@ ETX;
                                 if($newQIR->arrayPropertiesCheck('color',$jsonData['data'])){
                                     //6.1检查颜色格式是否正确
                                     if($newQIR->color16Check($jsonData['data']['color'])){
-                                        print_r("正确的格式");
                                         $basicStructure['color']=$jsonData['data']['color'];
                                     }else{
-                                        print_r("错误的格式");
                                         $basicStructure['color']='ffffff';
                                     }
                                 }else{
-                                    print_r("没有的格式");
                                     $basicStructure['color']='ffffff';
                                 }
-                                print_r($basicStructure['color']);
-                                print_r("yes");
+                                //7.检查是否存在width，并检查是否为数字
+                                if($newQIR->arrayPropertiesCheck('width',$jsonData['data'])){
+                                    //7.1检查是否是数字，不是数字则改写为默认值
+                                    if($newQIR->digitalCheck($jsonData['data']['width'])){
+                                        $basicStructure['width']=$jsonData['data']['width'];
+                                    }else{
+                                        $basicStructure['width']=2;
+                                    }
+                                }else{
+                                    $basicStructure['width']=2;
+                                }
+                                //8.details检查啊
+                                //8.1检查details是否存在
+                                if($newQIR->arrayPropertiesCheck('details',$jsonData['data'])){
+                                    //8.2检查details数据结构是否为数组
+                                    if($newQIR->getDataType($jsonData['data']['details'])=='array'){
+                                        foreach ($jsonData['data']['details'] as $value){
+                                            //8.3检查该项键值对是否存在
+                                            if ($newQIR->arrayPropertiesCheck('key',$value) AND $newQIR->arrayPropertiesCheck('value',$value)){
+                                                //8.4检查键名和键值是否正常
+                                                if($newQIR->commonKeyNameCheck($value['key']) AND $newQIR->illegalCharacterCheck($value['value'])){
+
+                                                }else{
+                                                    break;
+                                                }
+                                            }else{
+                                                break;
+                                            }
+                                        }
+                                    }else{
+                                        $basicStructure['details']='';
+                                    }
+                                }else{
+                                    $basicStructure['details']='';
+                                }
+                                //归档
+                                $basicStructure['point']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['point']));
+                                $basicStructure['points']=$newJDT->btoa($newJDT->jsonPack([$jsonData['data']['point']]));
+                                $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack([$jsonData['data']['details']]));
+                                //全部检查完毕
+                                $newMDBE->updatePointData($basicStructure);
                                 break;
                                 ////2023-2-16 继续写检查数据，然后写上传数据接口
+                                ////2023-2-26 服务端已经实现上传点数据接口(非即使)，需要增加+广播至客户端(All)，客户端对于details的显示没做
                             }
                         }
                     }

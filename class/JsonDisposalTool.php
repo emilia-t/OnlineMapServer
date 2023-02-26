@@ -35,4 +35,26 @@ class JsonDisposalTool
             return false;
         }
     }
+    /**编码为base64
+     * @param string $str
+     * @return false|string
+     */
+    function btoa($str=''){
+        try {
+            return base64_encode($str);
+        }catch (Exception $e){
+            return false;
+        }
+    }
+    /**解码base64
+     * @param string $str
+     * @return false|string
+     */
+    function atob($str=''){
+        try {
+            return base64_decode($str);
+        }catch (Exception $e){
+            return false;
+        }
+    }
 }
