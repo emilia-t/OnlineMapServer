@@ -19,7 +19,7 @@ sudo touch SMTP_U4tqjLYxNw.php
 sudo vim Mysql_OZ4pTiFHZf.php
 
 insert:
-?php
+
 $mysql_public_server_address="localhost";//Database address
 $mysql_public_user="map_edit";//Public map database account
 $mysql_public_password="password";//account password
@@ -30,7 +30,7 @@ $mysql_root_password="password";//The password of the root account will only be 
 sudo vim RSA_DersJx8t8F.php
 
 insert:
-<?php
+
 define("RSA_public","-----BEGIN PUBLIC KEY----------END PUBLIC KEY-----");//Type your public key here
 define("RSA_private","-----BEGIN PRIVATE KEY----------END PRIVATE KEY-----");//Type your private key here
 
@@ -38,7 +38,7 @@ define("RSA_private","-----BEGIN PRIVATE KEY----------END PRIVATE KEY-----");//T
 sudo vim SMTP_U4tqjLYxNw.php
 
 insert:
-<?php
+
 $licenseCodePOP3='';//Type the POP3 code of your email address
 $licenseCodeIMAP='';//Type the IMAP code of your email address
 
