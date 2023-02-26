@@ -17,7 +17,7 @@ sudo touch SMTP_U4tqjLYxNw.php
 sudo vim Mysql_OZ4pTiFHZf.php
 
 insert:
-<?php
+?php
 $mysql_public_server_address="localhost";//Database address
 $mysql_public_user="map_edit";//Public map database account
 $mysql_public_password="password";//account password
