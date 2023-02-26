@@ -30,11 +30,11 @@ function testDataBaseLink(){
                 $RootLink->multi_query(CreateSqlA);
                 //4.结束连接
                 mysqli_close($RootLink);
-                print_r("已创建数据库{$mysql_public_db_name}......已经为{$mysql_public_user}授予insert,update,delete,select权限......All Done\n");
-                print_r("请主动检查“{$mysql_public_db_name}”是否已创建，请主动检查“{$mysql_public_user}”权限是否正确...结束初始化\n");
+                print_r("已创建数据库{$mysql_public_db_name}......已经为{$mysql_public_user}授予insert,update,delete,select权限......Done\n");
+                print_r("请主动检查“{$mysql_public_db_name}”是否已创建，请主动检查“{$mysql_public_user}”权限是否正确\n...All Done\n");
             }
         }else{
-            print_r("数据库检测完毕\n");
+            print_r("...All Done\n");
         }
         try {
             mysqli_close($PbLink);
