@@ -31,8 +31,8 @@ sudo vim RSA_DersJx8t8F.php
 
 insert:
 
-define("RSA_public","-----BEGIN PUBLIC KEY----------END PUBLIC KEY-----");//Type your public key here
-define("RSA_private","-----BEGIN PRIVATE KEY----------END PRIVATE KEY-----");//Type your private key here
+define("RSA_public","-----BEGIN PUBLIC KEY----------END PUBLIC KEY-----");//Type your public key here<br /> 
+define("RSA_private","-----BEGIN PRIVATE KEY----------END PRIVATE KEY-----");//Type your private key here<br /> 
 
 ### 5.Configure SMTP, This is for user registration
 sudo vim SMTP_U4tqjLYxNw.php
