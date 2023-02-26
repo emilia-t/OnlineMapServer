@@ -36,6 +36,8 @@ require './api/Public_GetMapData.php';
 require './class/QualityInspectionRoom.php';
 //json工具
 require './class/JsonDisposalTool.php';
+//创建数据库
+require './api/Other_createMysqlDataBase.php';
 /**
 </external-program>
  **/
@@ -70,6 +72,8 @@ $theConfig=[
 /**
 <internal-procedures>
 **/
+//检测数据库
+testDataBaseLink();
 $theConfig['logFile']=fopen('./log/'.$theConfig['time'].'.txt','a+');
 //与客户端连接
 function handle_connection($connection){
@@ -341,6 +345,7 @@ function creatDate(){
   $seconds=sprintf('%02d',$date['seconds']);
   return "{$date['year']}-{$mon}-{$day} {$hours}:{$minutes}:{$seconds}";
 }
+
 /**
 </internal-procedures>
 **/
