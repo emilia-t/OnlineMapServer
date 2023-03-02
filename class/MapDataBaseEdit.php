@@ -27,7 +27,7 @@ class MapDataBaseEdit
                 return false;
             }
         }catch (Exception $E){
-
+            //print_r($E);
         }
     }
 }

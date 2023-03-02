@@ -268,9 +268,10 @@ ETX;
                                 //归档
                                 $basicStructure['point']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['point']));
                                 $basicStructure['points']=$newJDT->btoa($newJDT->jsonPack([$jsonData['data']['point']]));
-                                $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack([$jsonData['data']['details']]));
+                                $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['details']));
                                 //全部检查完毕
                                 $newMDBE->updatePointData($basicStructure);
+
                                 break;
                                 ////2023-2-16 继续写检查数据，然后写上传数据接口
                                 ////2023-2-26 服务端已经实现上传点数据接口(非即使)，需要增加+广播至客户端(All)，客户端对于details的显示没做
