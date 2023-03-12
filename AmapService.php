@@ -199,10 +199,10 @@ ETX;
                                     'length'=>null,
                                     'width'=>2,
                                     'size'=>null,
-                                    'childRelations'=>[],
-                                    'fatherRelation'=>'',
-                                    'childNodes'=>[],
-                                    'fatherNode'=>'',
+                                    'child_relations'=>[],
+                                    'father_relation'=>'',
+                                    'child_nodes'=>[],
+                                    'father_node'=>'',
                                     'details'=>[]
                                 ];
                                 //1.检查是否包含data键名
@@ -270,11 +270,28 @@ ETX;
                                 $basicStructure['points']=$newJDT->btoa($newJDT->jsonPack([$jsonData['data']['point']]));
                                 $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['details']));
                                 //全部检查完毕
-                                $newMDBE->updatePointData($basicStructure);
-
+                                //上传至数据库
+                                $updateStatus=$newMDBE->updatePointData($basicStructure);
+                                if($updateStatus===true){
+                                    //广播至所有人
+                                    //查询刚才加入的数据的id
+                                    $newId=$newMDBE->selectNewId();
+                                    //更改basic id
+                                    $basicStructure["id"]=$newId;
+                                    //组合
+                                    $sdJson=["type"=>"broadcast","class"=>"NewPoint","data"=>$basicStructure];
+                                    foreach ($socket_worker->connections as $con) {
+                                        //避免发送给匿名用户
+                                        if(property_exists($con,'email')){
+                                            if($con->email != ''){
+                                                //返回数据
+                                                $sendJson=json_encode($sdJson);
+                                                $con->send($sendJson);
+                                            }
+                                        }
+                                    }
+                                }
                                 break;
-                                ////2023-2-16 继续写检查数据，然后写上传数据接口
-                                ////2023-2-26 服务端已经实现上传点数据接口(非即使)，需要增加+广播至客户端(All)，客户端对于details的显示没做
                             }
                         }
                     }
