@@ -66,8 +66,8 @@ $theConfig=[
     "logFile"=>null,
     //             广播数据     服务端接收    客户端发送  服务端发送   服务端发送       客户端发送      服务端发送
     "typeList"=>['broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData']
-
 ];
+$theConfig['logFile']=fopen('./log/'.$theConfig['time'].'.txt','a+');
 /**
 </data>
 **/
@@ -75,26 +75,23 @@ $theConfig=[
 /**
 <internal-procedures>
 **/
-//检测数据库
-testDataBaseLink();
-$theConfig['logFile']=fopen('./log/'.$theConfig['time'].'.txt','a+');
+//初始化设置
+function startSetting(){
+    //检测数据库
+    testDataBaseLink();
+}
+startSetting();
 //与客户端连接
 function handle_connection($connection){
     global $theConfig;
-    $id=$connection->id;
-    $log=<<<ETX
-
-Id为:{$id};匿名用户连接
-
-ETX;
-    echo $log;
-    fwrite($theConfig['logFile'],$log);
+    $logData=['connectionId'=>$connection->id];
+    createLog('connect',$logData);
 }
 //收到客户端消息
 function handle_message($connection,$data){
     global $theData,$theConfig,$socket_worker,$newQIR,$newJDT,$newMDBE;
-    //1.校验json格式是否正确
-    $jsonData=checkJsonData($data);
+    //1.校验并解析json格式
+    $jsonData=$newJDT->checkJsonData($data);
     //2.检测是否为数组类型
     if(gettype($jsonData)==='array'){
     //3.检测是否存在必要属性'type'
@@ -104,14 +101,16 @@ function handle_message($connection,$data){
     //5.处理数据
         $nowType=$jsonData['type'];
         switch ($nowType){
-            case 'get_publickey':{//客户端尝试获取公钥
+            //获取公钥数据
+            case 'get_publickey':{
                 //发送公钥
                 $sendArr=['type'=>'publickey','data'=>getPublickey()];
                 $sendJson=json_encode($sendArr);
                 $connection->send($sendJson);
                 break;
             }
-            case 'login':{//客户端尝试登录
+            //登录数据
+            case 'login':{
                 //1.解密
                 $Email=$jsonData['data']['email'];
                 $Password=$jsonData['data']['password'];
@@ -124,13 +123,8 @@ function handle_message($connection,$data){
                     $sendArr=['type'=>'loginStatus','data'=>true];
                     $sendJson=json_encode($sendArr);
                     $connection->send($sendJson);
-                    $log=<<<ETX
-
-Id为:{$connection->id};Email为:{$Email};用户登录
-
-ETX;
-                    echo $log;
-                    fwrite($theConfig['logFile'],$log);
+                    $logData=['connectionId'=>$connection->id,'userEmail'=>$Email];
+                    createLog('login',$logData);
                 }else{
                     //查询为假
                     //返回数据
@@ -140,14 +134,15 @@ ETX;
                 }
                 break;
             }
-            case 'broadcast':{//广播数据
+            //广播数据
+            case 'broadcast':{
                 if(property_exists($connection,'email')) {//必须是非匿名会话才能使用
                     //0.class检测
                     if(array_key_exists('class',$jsonData)){
                         //1.提取类型
                         $nowClass=$jsonData['class'];
                         switch ($nowClass){
-//广播数据类型
+                            //广播A1位置
                             case 'A1':{
                                 //1.邮箱
                                 $theUserEmail = $connection->email;
@@ -188,6 +183,7 @@ ETX;
                                 }
                                 break;
                             }
+                            //广播新增点
                             case 'point':{
                                 //0.构建默认
                                 $basicStructure=[
@@ -278,8 +274,10 @@ ETX;
                                     $newId=$newMDBE->selectNewId();
                                     //更改basic id
                                     $basicStructure["id"]=$newId;
+                                    //发送广播的emilia
+                                    $broadcastEmail=$connection->email;
                                     //组合
-                                    $sdJson=["type"=>"broadcast","class"=>"NewPoint","data"=>$basicStructure];
+                                    $sdJson=["type"=>"broadcast","class"=>"NewPoint","conveyor"=>$broadcastEmail,"data"=>$basicStructure];
                                     foreach ($socket_worker->connections as $con) {
                                         //避免发送给匿名用户
                                         if(property_exists($con,'email')){
@@ -290,6 +288,8 @@ ETX;
                                             }
                                         }
                                     }
+                                    $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
+                                    createLog('userAddPoint',$logData);
                                 }
                                 break;
                             }
@@ -298,7 +298,8 @@ ETX;
                 }
                 break;
             }
-            case 'get_userData':{//用户获取数据(除开密码)
+            //获取用户数据
+            case 'get_userData':{
                 if(property_exists($connection,'email')) {//必须是非匿名会话才能使用
                     $theUserEmail = $connection->email;
                     $ref = GetUserData($theUserEmail);
@@ -310,7 +311,8 @@ ETX;
                 }
                 break;
             }
-            case 'get_mapData':{//用户获取地图数据
+            //获取地图数据
+            case 'get_mapData':{
                 if(property_exists($connection,'email')){//必须是非匿名会话才能使用
                     $ref=GetMapData();
                     //返回数据
@@ -334,23 +336,8 @@ function handle_close($connection){
     //2.获取用户名
     @$userEmail=$connection->emial;
     if($userEmail==''){$userEmail='未知';}
-    $log=<<<ETX
-
-Id为:{$nowConId};Email为:{$userEmail};断开连接
-
-ETX;
-    echo $log;
-    fwrite($theConfig['logFile'],$log);
-}
-//校验json格式
-function checkJsonData($value) {
-    $res = json_decode($value, true);
-    $error = json_last_error();
-    if (!empty($error)) {
-        return false;
-    }else{
-        return $res;
-    }
+    $logData=['connectionId'=>$nowConId,'userEmail'=>$userEmail];
+    createLog('disconnect',$logData);
 }
 //账号注册，参数：用户名，密码，QQ
 //向用户发送注册用验证码，参数：用户qq；成功返回值:验证码；失败返回值:false
@@ -403,7 +390,53 @@ function creatDate(){
   $seconds=sprintf('%02d',$date['seconds']);
   return "{$date['year']}-{$mon}-{$day} {$hours}:{$minutes}:{$seconds}";
 }
+//生成log对应的log
+function createLog($logType,$logData){
+    global $theConfig;
+    switch ($logType){
+        case 'connect':{
+            $log=<<<ETX
 
+连接Id为:{$logData['connectionId']};匿名用户连接
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'disconnect':{
+            $log=<<<ETX
+
+连接Id为:{$logData['connectionId']};Email为:{$logData['userEmail']};断开连接
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'login':{
+            $log=<<<ETX
+
+连接Id为:{$logData['connectionId']};Email为:{$logData['userEmail']};用户登录
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'userAddPoint':{
+            $log=<<<ETX
+
+连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};新增一个点:{$logData['addId']}
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        default:{}
+    }
+}
 /**
 </internal-procedures>
 **/

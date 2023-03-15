@@ -57,4 +57,17 @@ class JsonDisposalTool
             return false;
         }
     }
+    /**校验并解析json格式
+     * @param string $value
+     * @return false|array
+     */
+    function checkJsonData($value) {
+        $res = json_decode($value, true);
+        $error = json_last_error();
+        if (!empty($error)) {
+            return false;
+        }else{
+            return $res;
+        }
+    }
 }
