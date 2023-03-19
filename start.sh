@@ -1,2 +1,2 @@
 #！/bin/bash
-sudo php ./AmapService.php
+sudo php AmapService.php start

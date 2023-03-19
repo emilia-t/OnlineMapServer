@@ -14,7 +14,7 @@ function GetUserData($email){
         //选择库
         $dataHouse=mysqli_select_db($link,$mysql_public_db_name);
         //编辑查询语句
-        $sql="SELECT user_email,user_name,map_layer,default_a1,save_point,user_qq FROM account_data cou WHERE cou.user_email='$email'";
+        $sql="SELECT user_email,user_name,map_layer,default_a1,save_point,user_qq,head_color FROM account_data cou WHERE cou.user_email='$email'";
         $sqlTest=mysqli_query($link,$sql);
         if(mysqli_num_rows($sqlTest)==1){
             return mysqli_fetch_array($sqlTest,MYSQLI_ASSOC);

@@ -1,7 +1,6 @@
 <?php
-//2023-2-14继续写后端关于检测的功能
 /**
-class名：QualityInspectionRoom（质检间）
+class名：QualityInspectionRoom（质检间）-用于对用户上传的数据进行安全性检查
  *可选参数：
  * 1.feedback[true/false(default)]是否输出详细的错误报告而不是仅检查是否合格
  * 开启feedback后要想单独获取检测结果请使用  ...Check($value)->state 以获取

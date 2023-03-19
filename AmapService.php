@@ -2,7 +2,7 @@
 /**
 <php-config>
 **/
-error_reporting(0);
+error_reporting(E_ALL);
 /**
 </php-config>
 **/
@@ -14,6 +14,7 @@ use Workerman\Worker;
 use Workerman\Timer;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+use Workerman\Connection\AsyncTcpConnection;
 require_once 'Workerman/Autoloader.php';
 require './PHPMailer/src/Exception.php';
 require './PHPMailer/src/PHPMailer.php';
@@ -22,6 +23,8 @@ require './PHPMailer/src/SMTP.php';
 require './config/Mysql_OZ4pTiFHZf.php';
 //SMTP账号
 require './config/SMTP_U4tqjLYxNw.php';
+//ssl
+require './config/SSL_config.php';
 //获取公钥与私钥的API
 require './api/Public_getPublickey.php';
 //解密和加密功能
@@ -49,7 +52,8 @@ require './class/MapDataBaseEdit.php';
 **/
 $newQIR=new QualityInspectionRoom(false);
 $newJDT=new JsonDisposalTool();
-$newMDBE=new MapDataBaseEdit();
+//若要操作其余地图请在这里更改地图数据表的名字
+$newMDBE=new MapDataBaseEdit('map_0_data');
 /**
 </class>
 **/
@@ -59,13 +63,14 @@ $newMDBE=new MapDataBaseEdit();
 **/
 define('HEARTBEAT_TIME', 120);
 $theData=[
-    "globalUid"=>0,
+    'globalUid'=>0,
 ];
 $theConfig=[
-    "time"=>date('m-j'),
-    "logFile"=>null,
+    'globalId'=>0,
+    'time'=>date('m-j'),
+    'logFile'=>null,
     //             广播数据     服务端接收    客户端发送  服务端发送   服务端发送       客户端发送      服务端发送
-    "typeList"=>['broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData']
+    'typeList'=>['broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData']
 ];
 $theConfig['logFile']=fopen('./log/'.$theConfig['time'].'.txt','a+');
 /**
@@ -168,14 +173,14 @@ function handle_message($connection,$data){
                                     $na='无名';
                                 }
                                 //2.集合
-                                $sdJson=["type"=>"broadcast","class"=>"A1","data"=>["x"=>$x,"y"=>$y,"color"=>$co,"name"=>$na,"email"=>$theUserEmail]];
+                                $sdJson=['type'=>'broadcast','class'=>'A1','data'=>['x'=>$x,'y'=>$y,'color'=>$co,'name'=>$na,'email'=>$theUserEmail]];
+                                //返回数据
+                                $sendJson=json_encode($sdJson);
                                 foreach ($socket_worker->connections as $con) {
                                     //避免发送给匿名用户
                                     if(property_exists($con,'email')){
                                     if($con->email != ''){
                                     if($con->email != $theUserEmail){//避免发给广播者自身
-                                        //返回数据
-                                        $sendJson=json_encode($sdJson);
                                         $con->send($sendJson);
                                     }
                                     }
@@ -185,22 +190,8 @@ function handle_message($connection,$data){
                             }
                             //广播新增点
                             case 'point':{
-                                //0.构建默认
-                                $basicStructure=[
-                                    'id'=>'temp',
-                                    'type'=>'point',
-                                    'points'=>[],
-                                    'point'=>null,
-                                    'color'=>'',
-                                    'length'=>null,
-                                    'width'=>2,
-                                    'size'=>null,
-                                    'child_relations'=>[],
-                                    'father_relation'=>'',
-                                    'child_nodes'=>[],
-                                    'father_node'=>'',
-                                    'details'=>[]
-                                ];
+                                //0.构建默认数据内容
+                                $basicStructure=['id'=>'temp','type'=>'point','points'=>[],'point'=>null,'color'=>'','length'=>null,'width'=>2,'size'=>null,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>[]];
                                 //1.检查是否包含data键名
                                 if(!$newQIR->arrayPropertiesCheck('data',$jsonData)){break;}
                                 //2.检查data是否为数组
@@ -268,28 +259,53 @@ function handle_message($connection,$data){
                                 //全部检查完毕
                                 //上传至数据库
                                 $updateStatus=$newMDBE->updatePointData($basicStructure);
+                                //写入日志文件和广播给其他用户
                                 if($updateStatus===true){
                                     //广播至所有人
                                     //查询刚才加入的数据的id
                                     $newId=$newMDBE->selectNewId();
                                     //更改basic id
-                                    $basicStructure["id"]=$newId;
+                                    $basicStructure['id']=$newId;
                                     //发送广播的emilia
                                     $broadcastEmail=$connection->email;
+                                    //时间
+                                    $dateTime=creatDate();
                                     //组合
-                                    $sdJson=["type"=>"broadcast","class"=>"NewPoint","conveyor"=>$broadcastEmail,"data"=>$basicStructure];
+                                    $sdJson=['type'=>'broadcast','class'=>'point','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
+                                    //返回数据
+                                    $sendJson=json_encode($sdJson);
                                     foreach ($socket_worker->connections as $con) {
                                         //避免发送给匿名用户
                                         if(property_exists($con,'email')){
                                             if($con->email != ''){
-                                                //返回数据
-                                                $sendJson=json_encode($sdJson);
                                                 $con->send($sendJson);
                                             }
                                         }
                                     }
                                     $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
                                     createLog('userAddPoint',$logData);
+                                }
+                                break;
+                            }
+                            //删除要素
+                            case 'deleteElement':{
+
+                                break;
+                            }
+                            case 'textMessage':{
+                                //时间
+                                $dateTime=creatDate();
+                                $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$connection->email,'text'=>$jsonData['data']];
+                                $sendArr = ['type'=>'broadcast','class'=>'textMessage','conveyor'=>$connection->email,'time'=>$dateTime,'data'=>$jsonData['data']];
+                                $sendJson = json_encode($sendArr);
+                                createLog('textMessage',$logData);
+                                foreach ($socket_worker->connections as $con) {
+                                    //避免发送给匿名用户
+                                    if(property_exists($con,'email')){
+                                        //普通文本消息不会上传服务器
+                                        //这里会将汉字之类的转化为base64
+                                        $con->send($sendJson);
+                                    }
                                 }
                                 break;
                             }
@@ -356,7 +372,7 @@ function sendVerificationCode($qqNumber){
     $PHPMailerObj->SMTPSecure='ssl';
     $PHPMailerObj->Port=465;
     $PHPMailerObj->setFrom('emilia-t@qq.com', 'emilia-t');
-    $PHPMailerObj->addAddress("$qqNumber@qq.com", "$qqNumber@qq.com");//收件人
+    $PHPMailerObj->addAddress('$qqNumber@qq.com', '$qqNumber@qq.com');//收件人
     $PHPMailerObj->addReplyTo('emilia-t@qq.com','emilia-t');
     $PHPMailerObj->isHTML(true);
     $PHPMailerObj->Subject='欢迎您注册ATSW外棋账号！';
@@ -393,11 +409,12 @@ function creatDate(){
 //生成log对应的log
 function createLog($logType,$logData){
     global $theConfig;
+    $time=creatDate();
     switch ($logType){
         case 'connect':{
             $log=<<<ETX
 
-连接Id为:{$logData['connectionId']};匿名用户连接
+{$time}--连接Id为:{$logData['connectionId']};匿名用户连接
 
 ETX;
             echo $log;
@@ -407,7 +424,7 @@ ETX;
         case 'disconnect':{
             $log=<<<ETX
 
-连接Id为:{$logData['connectionId']};Email为:{$logData['userEmail']};断开连接
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['userEmail']};断开连接
 
 ETX;
             echo $log;
@@ -417,7 +434,7 @@ ETX;
         case 'login':{
             $log=<<<ETX
 
-连接Id为:{$logData['connectionId']};Email为:{$logData['userEmail']};用户登录
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['userEmail']};用户登录
 
 ETX;
             echo $log;
@@ -427,7 +444,17 @@ ETX;
         case 'userAddPoint':{
             $log=<<<ETX
 
-连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};新增一个点:{$logData['addId']}
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};新增一个点:{$logData['addId']}
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'textMessage':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};发送一条消息:{$logData['text']}
 
 ETX;
             echo $log;
@@ -448,21 +475,22 @@ ETX;
 $context = array(
     'ssl' => array(
 // 使用绝对路径
-        'local_cert' => 'C://SSL/1_atsw.top_bundle.crt', // 也可以是crt文件
-        'local_pk' => 'C://SSL/2_atsw.top.key',
+        'local_cert' => "$__SERVER_SSL_CRT__", // 也可以是crt文件
+        'local_pk' => "$__SERVER_SSL_KEY__",
         'verify_peer' => false,
     )
 );
 // 这里设置的是websocket协议
-//$socket_worker = new Worker('websocket://0.0.0.0:9998', $context);
+$socket_worker = new Worker('websocket://0.0.0.0:9998', $context);
 // 设置transport开启ssl，websocket+ssl即wss
+//请再windows中关闭
 //$socket_worker->transport = 'ssl';
 // 这里设置的是websocket协议
-$socket_worker = new Worker('websocket://0.0.0.0:9998');
+//$socket_worker = new Worker('websocket://0.0.0.0:9998');
 // 设置transport开启ssl，websocket+ssl即wss
 //$socket_worker->transport = 'ssl';
 // 启动100个进程
-$socket_worker->count = 100;
+$socket_worker->count = 1;
 $socket_worker->onConnect = 'handle_connection';
 $socket_worker->onMessage = 'handle_message';
 $socket_worker->onClose = 'handle_close';
