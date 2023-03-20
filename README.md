@@ -9,10 +9,10 @@ Start setting
 
 ### 1.Copy a blank configuration file
 sudo mkdir config<br /> 
-cp Server_config.php ./config/Server_config.php<br />
+sudo cp Server_config.php ./config/Server_config.php<br />
 
 ### 2.Write a configuration file you just copied
-vim ./config/Server_config.php<br />
+sudo vim ./config/Server_config.php<br />
 
 ### 3.Windows please Run start.bat, Linux please Run start.sh
 
