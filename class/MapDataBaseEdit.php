@@ -64,7 +64,7 @@ class MapDataBaseEdit
     }
     /**删除一个地图要素
      * @param int $elementId
-     * @return false
+     * @return bool
      */
     function deleteElementData($elementId){
         try{
@@ -76,7 +76,6 @@ class MapDataBaseEdit
             //编辑查询语句
             $sql = "DELETE FROM {$this->mapDateSheetName} WHERE id='{$elementId}'";
             $sqlQu = mysqli_query($link, $sql);
-            $ref=mysqli_fetch_array($sqlQu,MYSQLI_NUM);
             if ($sqlQu) {
                 mysqli_close($link);
                 return true;

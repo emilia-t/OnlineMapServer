@@ -287,7 +287,31 @@ function handle_message($connection,$data){
                                     }
                                     //删除要素
                                     case 'deleteElement':{
-
+                                        try{
+                                            $conveyor=$connection->email;
+                                            $ID=$jsonData['data']['id'];
+                                            $Time=creatDate();
+                                            $sendArr=['type'=>'broadcast','class'=>'deleteElement','conveyor'=>$conveyor,'time'=>$Time,'data'=>['id'=>$ID]];
+                                            $sendJson=json_encode($sendArr);
+                                            //更改数据库
+                                            if($newMDBE->deleteElementData($ID)){
+                                                //更改成功则广播所有人
+                                                foreach ($socket_worker->connections as $con) {
+                                                    //避免发送给匿名用户
+                                                    if(property_exists($con,'email')){
+                                                        if($con->email != ''){
+                                                            $con->send($sendJson);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            //写入日志
+                                            $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$conveyor,'id'=>$ID];
+                                            createLog('deleteElement',$logData);
+                                        }catch (Exception $E){
+                                            print_r('未知错误：deleteElement收到不明信息:');
+                                            print_r($jsonData);
+                                        }
                                         break;
                                     }
                                     case 'textMessage':{
@@ -452,6 +476,16 @@ ETX;
             $log=<<<ETX
 
 {$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};发送一条消息:{$logData['text']}
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'deleteElement':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};删除一个元素:{$logData['id']}
 
 ETX;
             echo $log;
