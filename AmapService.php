@@ -68,6 +68,8 @@ $theConfig=[
     //             广播数据     服务端接收    客户端发送  服务端发送   服务端发送       客户端发送      服务端发送
     'typeList'=>['broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData']
 ];
+$dir = 'log';
+if (!file_exists($dir)) {mkdir($dir, 0777, true);echo "文件夹 $dir 创建成功;";}
 $theConfig['logFile']=fopen('./log/'.$theConfig['time'].'.txt','a+');
 /**
 </data>
