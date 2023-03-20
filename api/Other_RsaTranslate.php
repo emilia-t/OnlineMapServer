@@ -2,7 +2,7 @@
 function  RsaTranslate ($data,$type){
     if ($type=='encode') {
         $return=openssl_pkey_get_public(RSA_public);//检查公钥是否可用
-        if(!＄return){
+        if(!$return){
             echo("公钥不可用");
         }
         openssl_public_encrypt($data,$crypted,$return);//使用公钥加密数据
