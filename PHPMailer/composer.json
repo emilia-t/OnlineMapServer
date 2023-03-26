@@ -32,7 +32,8 @@
         "ext-hash": "*",
         "ext-json": "*",
         "ext-openssl": "*",
-        "ext-mysqli": "*"
+        "ext-mysqli": "*",
+      "ext-pdo": "*"
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",

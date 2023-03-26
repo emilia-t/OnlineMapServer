@@ -3,6 +3,8 @@
 <php-config>
  **/
 error_reporting(E_ALL);
+//启用PDO
+ini_set('extension', 'pdo_mysql');
 /**
 </php-config>
  **/
@@ -250,13 +252,13 @@ function handle_message($connection,$data){
                                         }else{
                                             $basicStructure['details']='';
                                         }
-                                        //归档
+                                        //归档加密
                                         $basicStructure['point']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['point']));
                                         $basicStructure['points']=$newJDT->btoa($newJDT->jsonPack([$jsonData['data']['point']]));
                                         $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['details']));
                                         //全部检查完毕
                                         //上传至数据库
-                                        $updateStatus=$newMDBE->updatePointData($basicStructure);
+                                        $updateStatus=$newMDBE->uploadPointData($basicStructure);
                                         //写入日志文件和广播给其他用户
                                         if($updateStatus===true){
                                             //广播至所有人
@@ -285,7 +287,7 @@ function handle_message($connection,$data){
                                         }
                                         break;
                                     }
-                                    //删除要素
+                                    //删除元素
                                     case 'deleteElement':{
                                         try{
                                             $conveyor=$connection->email;
@@ -314,10 +316,11 @@ function handle_message($connection,$data){
                                         }
                                         break;
                                     }
+                                    //普通文本
                                     case 'textMessage':{
                                         //时间
                                         $dateTime=creatDate();
-                                        $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$connection->email,'text'=>$jsonData['data']];
+                                        $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$connection->email,'text'=>$jsonData['data']['message']];
                                         $sendArr = ['type'=>'broadcast','class'=>'textMessage','conveyor'=>$connection->email,'time'=>$dateTime,'data'=>$jsonData['data']];
                                         $sendJson = json_encode($sendArr);
                                         createLog('textMessage',$logData);
@@ -328,6 +331,94 @@ function handle_message($connection,$data){
                                                 //这里会将汉字之类的转化为base64
                                                 $con->send($sendJson);
                                             }
+                                        }
+                                        break;
+                                    }
+                                    //更新元素
+                                    case 'updateElement':{
+                                        //0.1details
+                                        $details=[];
+                                        //0.2构建默认数据内容
+                                        $basicStructure=[];
+                                        //1.检查是否包含data键名
+                                        if(!$newQIR->arrayPropertiesCheck('data',$jsonData)){break;}
+                                        //2.检查data是否为数组
+                                        if(!$newQIR->getDataType($jsonData['data'])=='array'){break;}
+                                        //$pwd jsonData['data']
+                                        //2.5检查id是否存在
+                                        if(!$newQIR->arrayPropertiesCheck('id',$jsonData['data'])){break;}
+                                        //2.6检查id是否为数字，是则加入，否则退出case
+                                        if($newQIR->digitalCheck($jsonData['data']['id'])){
+                                            $basicStructure['id']=$jsonData['data']['id'];
+                                        }else{
+                                            echo '所更新的id包含非数字字符';
+                                            break;
+                                        }
+                                        //3.检查changes是否存在
+                                        if(!$newQIR->arrayPropertiesCheck('changes',$jsonData['data'])){break;}
+                                        //4.检查changes是否为数组
+                                        if(!$newQIR->getDataType($jsonData['data']['changes'])=='array'){break;}
+                                        //$pwd jsonData['data']['changes']
+                                        //5.检查color是否存在，存在则检查
+                                        if($newQIR->arrayPropertiesCheck('color',$jsonData['data']['changes'])){
+                                            //5.1检查颜色格式是否正确
+                                            if($newQIR->color16Check($jsonData['data']['changes']['color'])){
+                                                $basicStructure['color']=$jsonData['data']['changes']['color'];
+                                            }
+                                        }
+                                        //6.检查是否存在width，并检查是否为数字
+                                        if($newQIR->arrayPropertiesCheck('width',$jsonData['data']['changes'])){
+                                            //6.1检查是否是数字,，存在则检查
+                                            if($newQIR->digitalCheck($jsonData['data']['changes']['width'])){
+                                                $basicStructure['width']=$jsonData['data']['changes']['width'];
+                                            }
+                                        }
+                                        //7.details检查
+                                        //7.1检查details是否存在
+                                        if($newQIR->arrayPropertiesCheck('details',$jsonData['data']['changes'])){
+                                            //7.2检查details数据结构是否为数组
+                                            if($newQIR->getDataType($jsonData['data']['changes']['details'])=='array'){
+                                                foreach ($jsonData['data']['changes']['details'] as $value){
+                                                    //7.3检查该项键值对是否存在
+                                                    if ($newQIR->arrayPropertiesCheck('key',$value) AND $newQIR->arrayPropertiesCheck('value',$value)){
+                                                        //8.4检查键名和键值是否正常，如果不正常则跳出当前循环case
+                                                        if($newQIR->commonKeyNameCheck($value['key']) AND $newQIR->illegalCharacterCheck($value['value'])){
+                                                            array_push($details,$value);
+                                                            continue;
+                                                        }else{
+                                                            continue;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        //全部检查完毕
+                                        //打包$details
+                                        if(count($details)!=0){
+                                            $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack($details));
+                                        }
+                                        //上传数据库
+                                        if($newMDBE->updateElementData($basicStructure)){
+                                            //广播给登录用户
+                                            //发送广播的emilia
+                                            $broadcastEmail=$connection->email;
+                                            //时间
+                                            $dateTime=creatDate();
+                                            //组合
+                                            $sdJson=['type'=>'broadcast','class'=>'updateElement','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
+                                            //返回数据
+                                            $sendJson=json_encode($sdJson);
+                                            foreach ($socket_worker->connections as $con){
+                                                //避免发送给匿名用户
+                                                if(property_exists($con,'email')){
+                                                    if($con->email!=''){
+                                                        $con->send($sendJson);
+                                                    }
+                                                }
+                                            }
+                                            //写入日志文件
+                                            $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'id'=>$basicStructure['id']];
+                                            createLog('updateElement',$logData);
                                         }
                                         break;
                                     }
@@ -486,6 +577,16 @@ ETX;
             $log=<<<ETX
 
 {$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};删除一个元素:{$logData['id']}
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'updateElement':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};更新一个元素:{$logData['id']}
 
 ETX;
             echo $log;
