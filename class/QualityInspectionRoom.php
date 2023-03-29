@@ -148,9 +148,9 @@ class QualityInspectionRoom
      * @param string $Exp
      * @return array|bool
      */
-    function commonKeyNameCheck($value,$Exp="/[^a-z0-9A-Z_\u4e00-\u9fa5]/m"){
+    function commonKeyNameCheck($value,$Exp="/[^a-z0-9A-Z_\x{4e00}-\x{9fa5}]/su"){
         try{
-            if(!preg_match($Exp,$value)){
+            if(preg_match($Exp,$value)!==0){
                 if($this->feedback){
                     $details=['description'=>'Common key name format error:'.$value];
                     return $this->qualityInspectionReport('commonKeyNameCheck',false,$details);

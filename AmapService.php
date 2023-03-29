@@ -604,7 +604,7 @@ ETX;
 <worker-setting>
  **/
 if(__SERVER_SSL_STA__){
-    $context=array('ssl'=>array('local_cert'=>__SERVER_SSL_CRT__,'local_pk'=>__SERVER_SSL_KEY__,'verify_peer'=>true));
+    $context=array('ssl'=>array('local_cert'=>__SERVER_SSL_CRT__,'local_pk'=>__SERVER_SSL_KEY__,'verify_peer'=>false));
     $socket_worker=new Worker('websocket://'.__SERVER_IP_PORT__,$context);
     $socket_worker->transport='ssl';
 }else{
