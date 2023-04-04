@@ -9,6 +9,38 @@ class MapDataBaseEdit
     public function __construct($dateSheetName='map_0_data'){
         $this->mapDateSheetName=$dateSheetName;
     }
+    /**上传线数据，请注意不要使用二维数组，二维值请转为json->base64
+     * @param $lineObj array
+     * @return bool
+     */
+    function uploadLineData($lineObj){
+        try {
+            global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
+            // 连接数据库
+            $dsn='mysql:host='.$mysql_public_server_address.';dbname='.$mysql_public_db_name;
+            $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION];
+            $db=new PDO($dsn,$mysql_public_user,$mysql_public_password,$options);
+            $sql="INSERT INTO {$this->mapDateSheetName} (id,type,points,point,color,length,width,size,child_relations,father_relation,child_nodes,father_node,details) VALUES (NULL,:typ,:points,:point,:color,NULL,:width,NULL,NULL,NULL,NULL,NULL,:details)";
+            //准备预处理语句
+            $stmt=$db->prepare($sql);
+            //执行预处理语句，并绑定参数
+            $stmt->bindParam(':typ',$lineObj['type']);
+            $stmt->bindParam(':points',$lineObj['points']);
+            $stmt->bindParam(':point',$lineObj['point']);
+            $stmt->bindParam(':color',$lineObj['color']);
+            $stmt->bindParam(':width',$lineObj['width']);
+            $stmt->bindParam(':details',$lineObj['details']);
+            $stmt->execute();
+            //输出成功或失败的信息
+            if ($stmt->rowCount()>0){
+                return true;
+            } else {
+                return false;
+            }
+        }catch (Exception $E){
+            return false;
+        }
+    }
     /**上传点数据，请注意不要使用二维数组，二维值请转为json->base64
      * @param $pointObj array
      * @return bool
