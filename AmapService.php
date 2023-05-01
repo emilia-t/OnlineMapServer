@@ -17,6 +17,7 @@ use Workerman\Timer;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use Workerman\Connection\AsyncTcpConnection;
+use Workerman\Protocols\Http\Response;
 require_once 'Workerman/Autoloader.php';
 require './PHPMailer/src/Exception.php';
 require './PHPMailer/src/PHPMailer.php';
@@ -41,6 +42,8 @@ require './class/QualityInspectionRoom.php';
 require './class/JsonDisposalTool.php';
 //地图数据库编辑工具
 require './class/MapDataBaseEdit.php';
+//文件处理类
+require './class/FileOperation.php';
 /**
 </external-program>
  **/
@@ -51,7 +54,9 @@ require './class/MapDataBaseEdit.php';
 $newQIR=new QualityInspectionRoom(false);
 $newJDT=new JsonDisposalTool();
 //若要操作其余地图请在这里更改地图数据表的名字
-$newMDBE=new MapDataBaseEdit('map_0_data');
+$newMDBE=new MapDataBaseEdit($mysql_public_sheet_name);
+//
+$newFO=new FileOperation();
 /**
 </class>
  **/
@@ -62,13 +67,14 @@ $newMDBE=new MapDataBaseEdit('map_0_data');
 const HEARTBEAT_TIME=120;
 $theData=[
     'globalUid'=>0,
+    'ip_connect_times'=>[]
 ];
 $theConfig=[
     'globalId'=>0,
     'time'=>date('m-j'),
     'logFile'=>null,
-    //             广播数据     服务端接收    客户端发送  服务端发送   服务端发送       客户端发送      服务端发送
-    'typeList'=>['broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData']
+    //          获取服务器展示图像     获取服务器配置      广播数据     服务端接收    客户端发送  服务端发送   服务端发送       客户端发送      服务端发送
+    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData']
 ];
 $dir = 'log';
 if (!file_exists($dir)) {mkdir($dir, 0777, true);echo "文件夹 $dir 创建成功;";}
@@ -88,13 +94,27 @@ function startSetting(){
 startSetting();
 //与客户端连接
 function handle_connection($connection){
-    global $theConfig;
-    $logData=['connectionId'=>$connection->id];
+    global $theData;
+    $ip=$connection->getRemoteIp();
+    //$ip=$connection->getRemoteIp().':'.$connection->getRemotePort();
+    //当客户端连接上之后需要携带至少1个参数表达意愿
+    if(!isset($theData['ip_connect_times'][$ip])) {
+        $theData['ip_connect_times'][$ip] = 0;
+    }else{
+        $theData['ip_connect_times'][$ip]++;
+    }
+    if($theData['ip_connect_times'][$ip] >= 60) {
+        $connection->close();
+        $logData=['connectionId'=>$connection->id,'connectionIp'=>$ip];
+        createLog('warn',$logData);
+        return;
+    }
+    $logData=['connectionId'=>$connection->id,'connectionIp'=>$ip];
     createLog('connect',$logData);
 }
 //收到客户端消息
-function handle_message($connection,$data){
-    global $theData,$theConfig,$socket_worker,$newQIR,$newJDT,$newMDBE;
+function handle_message($connection, $data){
+    global $theData,$theConfig,$socket_worker,$newQIR,$newJDT,$newMDBE,$newFO;
     //1.校验并解析json格式
     $jsonData=$newJDT->checkJsonData($data);
     //2.检测是否为数组类型
@@ -106,6 +126,44 @@ function handle_message($connection,$data){
                 //5.处理数据
                 $nowType=$jsonData['type'];
                 switch ($nowType){
+                    //获取服务器展示图像
+                    //当客户端首次申请此指令时服务器会线询问客户端本地是否有，以及更新时间，如果没有或者更新的时间低于服务端则服务器会返回新的图像资源以及更新时间
+                    //客户端在申请时应该同时发送一个最新时间
+                    case 'get_serverImg':{
+                        //1检查是否包含一个time的参数
+                        if($newQIR->arrayPropertiesCheck('data',$jsonData)){
+                        if($newQIR->arrayPropertiesCheck('time',$jsonData['data'])){
+                            //获取map_img的最近修改时间
+                            $lt = $newFO->getFileModifiedTime(__SERVER_CONFIG__IMG__);
+                            //与客户端进行对比如果返回false说明相同或时间格式错误，则返回空数据，如果返回客户端落后于服务端则返回新数据
+                            if($newFO->compareTime($lt,$jsonData['data']['time'])==='false'){
+                                $connection->send('');
+                            }else if($newFO->compareTime($lt,$jsonData['data']['time'])===$lt){
+                                $pngData = $newFO->imageToBase64(__SERVER_CONFIG__IMG__);
+                                $sendJson = json_encode(['type'=>'send_serverImg','data'=>['string'=>$pngData,'time'=>$lt]]);
+                                $connection->send($sendJson);
+                            }
+                        }
+                        }
+                        break;
+                    }
+                    //获取服务器的配置
+                    case 'get_serverConfig':{
+                        $sendArr=['type'=>'send_serverConfig','data'=>[
+                            'key'=>__SERVER_CONFIG__KEY__,
+                            'url'=>__SERVER_CONFIG__URL__,
+                            'name'=>__SERVER_CONFIG__NAME__,
+                            'online_number'=>getOnlineNumber(),
+                            'max_online'=>__SERVER_CONFIG__MAX_USER__,
+                            'max_height'=>__SERVER_CONFIG__MAX_HEIGHT__,
+                            'max_width'=>__SERVER_CONFIG__MAX_WIDTH__,
+                            'default_x'=>__SERVER_CONFIG__DEFAULT_X__,
+                            'default_y'=>__SERVER_CONFIG__DEFAULT_Y__
+                        ]];
+                        $sendJson=json_encode($sendArr);
+                        $connection->send($sendJson);
+                        break;
+                    }
                     //获取公钥数据
                     case 'get_publickey':{
                         //发送公钥
@@ -625,6 +683,19 @@ function creatVerificationCode(){
     }
     return $token;
 }
+//获取当前在线人数
+function getOnlineNumber(){
+    global $socket_worker;
+    $num=0;
+    foreach ($socket_worker->connections as $con){
+        if(property_exists($con,'email')){
+            if($con->email!=''){
+                $num++;
+            }
+        }
+    }
+    return $num;
+}
 //生成当前时间
 function creatDate(){
     $date=getdate();
@@ -643,7 +714,7 @@ function createLog($logType,$logData){
         case 'connect':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};匿名用户连接
+{$time}--连接Id为:{$logData['connectionId']};连接IP为:{$logData['connectionIp']};匿名用户连接
 
 ETX;
             echo $log;
@@ -720,6 +791,16 @@ ETX;
             fwrite($theConfig['logFile'],$log);
             break;
         }
+        case 'warn':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};连接IP为:{$logData['connectionIp']};恶意连接
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
         default:{}
     }
 }
@@ -741,7 +822,9 @@ $socket_worker->count=1;
 $socket_worker->onConnect='handle_connection';
 $socket_worker->onMessage='handle_message';
 $socket_worker->onClose='handle_close';
-//对长时间未登录的会话进行断开连接
+//初始化设置：
+//1.对长时间未登录的会话进行断开连接
+//2.限制恶意的连接Ip
 $socket_worker->onWorkerStart=function ($socket_worker){
     Timer::add(10,
         function () use($socket_worker){
@@ -759,6 +842,12 @@ $socket_worker->onWorkerStart=function ($socket_worker){
                     }
                 }
             }
+        }
+    );
+    Timer::add(2 * 60,
+        function() {
+            global $theData;
+            $theData['ip_connect_times'] = [];  // 2分钟清理一次
         }
     );
 };
