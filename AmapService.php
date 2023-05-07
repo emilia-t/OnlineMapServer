@@ -229,7 +229,7 @@ function handle_message($connection, $data){
                                 //1.提取类型
                                 $nowClass=$jsonData['class'];
                                 switch ($nowClass){
-                                    //广播A1位置
+                                    //广播A1位置(此类型需要后续删除)
                                     case 'A1':{
                                         //1.邮箱
                                         $theUserEmail = $connection->email;
@@ -621,6 +621,91 @@ function handle_message($connection, $data){
                                         }
                                         break;
                                     }
+                                    //更新元素节点
+                                    case 'updateElementNode':{
+                                        $nodeObject=[];
+                                        //1.检查
+                                        if($newQIR->getDataType($jsonData['data'])!='array'){break;}
+                                        if(!$newQIR->arrayPropertiesCheck('id',$jsonData['data'])){break;}
+                                        if(!$newQIR->arrayPropertiesCheck('points',$jsonData['data'])){break;}
+                                        if($newQIR->getDataType($jsonData['data']['points'])!='array'){break;}
+                                        $lock=false;
+                                        foreach($jsonData['data']['points'] as $nowCheck){
+                                            if($newQIR->getDataType($nowCheck)!='array'){
+                                                $lock=true;
+                                                break;
+                                            }
+                                            if($newQIR->arrayPropertiesCheck('x',$nowCheck)==false || $newQIR->arrayPropertiesCheck('y',$nowCheck)==false){
+                                                $lock=true;
+                                                break;
+                                            }
+                                            if($newQIR->digitalCheck($nowCheck['x'])==false || $newQIR->digitalCheck($nowCheck['y'])==false){
+                                                $lock=true;
+                                                break;
+                                            }
+                                        }
+                                        if($lock){//如果存在异常的节点数据则推出case不做操作
+                                            break;
+                                        }else{
+                                            //预
+                                            $nodeObject['id']=$jsonData['data']['id'];
+                                            $nodeObject['points']=$jsonData['data']['points'];
+                                            //接着再判断是否存在point（选择性传入的参数）
+                                            if($newQIR->arrayPropertiesCheck('point',$jsonData['data'])){
+                                                //检查是否为数组
+                                                if($newQIR->getDataType($jsonData['data']['point'])=='array'){
+                                                    //检查是否存在xy
+                                                    if($newQIR->arrayPropertiesCheck('x',$jsonData['data']['point']) && $newQIR->arrayPropertiesCheck('y',$jsonData['data']['point'])){
+                                                        //检查是否为数字
+                                                        if($newQIR->digitalCheck($jsonData['data']['point']['x']) && $newQIR->digitalCheck($jsonData['data']['point']['y'])){
+                                                            $nodeObject['point']=[];
+                                                            $nodeObject['point']['x']=$jsonData['data']['point']['x'];
+                                                            $nodeObject['point']['y']=$jsonData['data']['point']['y'];
+                                                            //打包为json
+                                                            $nodeObject['point']=$newJDT->jsonPack($nodeObject['point']);
+                                                            //转化为b
+                                                            $nodeObject['point']=$newJDT->btoa($nodeObject['point']);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        //打包为json
+                                        $nodeObject['points']=$newJDT->jsonPack($nodeObject['points']);
+                                        //转化为b
+                                        $nodeObject['points']=$newJDT->btoa($nodeObject['points']);
+                                        //上传数据库
+                                        if($newMDBE->updateElementData($nodeObject)){
+                                            if($newQIR->arrayPropertiesCheck('type',$jsonData['data'])){
+                                                $nodeObject['type']=$jsonData['data']['type'];
+                                            }
+                                            //广播给登录用户
+                                            //发送广播的emilia
+                                            $broadcastEmail=$connection->email;
+                                            //时间
+                                            $dateTime=creatDate();
+                                            //组合
+                                            $sdJson=['type'=>'broadcast','class'=>'updateElementNode','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$nodeObject];
+                                            //返回数据
+                                            $sendJson=json_encode($sdJson);
+                                            foreach ($socket_worker->connections as $con){
+                                                //避免发送给匿名用户
+                                                if(property_exists($con,'email')){
+                                                    //如果不希望发送给广播者则启用下方
+                                                    //if($con->email==$broadcastEmail){
+                                                    //    continue;
+                                                    //}
+                                                    if($con->email!=''){
+                                                        $con->send($sendJson);
+                                                    }
+                                                }
+                                            }
+                                            //写入日志文件
+                                            $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'id'=>$nodeObject['id']];
+                                            createLog('updateElementNode',$logData);
+                                        }
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -775,6 +860,16 @@ ETX;
             $log=<<<ETX
 
 {$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};删除一个元素:{$logData['id']}
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'updateElementNode':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};更新一个元素节点:{$logData['id']}
 
 ETX;
             echo $log;
