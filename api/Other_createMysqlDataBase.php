@@ -13,7 +13,7 @@ function testDataBaseLink(){
         print_r("公用账号连接数据库成功\n");
         print_r("检测数据库中：\n");
         // 检查数据库是否存在
-        $result = mysqli_query($PbLink, "SHOW DATABASES LIKE 'map'");
+        $result = mysqli_query($PbLink, "SHOW DATABASES LIKE '{$mysql_public_db_name}'");
         if (mysqli_num_rows($result) == 0) {
             //连接数据库失败
             print_r("正在创建地图数据库\n");
@@ -25,7 +25,7 @@ function testDataBaseLink(){
             if(!$RootLink){
                 print_r("root账号连接失败，请检查/config/Mysql_OZ4pTiFHZf.php下的配置\n");
             }else{
-                //3.创建数据库
+                //3.创建数据库-表单
                 $RootLink->multi_query(CreateSqlA);
                 //4.结束连接
                 mysqli_close($RootLink);

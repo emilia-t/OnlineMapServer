@@ -2,7 +2,6 @@
 function LoginServer($email,$password){
     global $mysql_public_server_address,$mysql_public_user,$mysql_public_password,$mysql_public_db_name;
     //检测输入
-    //web端RegExp("[^a-zA-Z0-9\_@.+/=]","i");
     $pattern = "/[^a-zA-Z0-9_@.+\/=-]/";
     preg_match($pattern, $email.$password,$res);
     if(count($res)>0){
