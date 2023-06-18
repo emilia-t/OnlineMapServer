@@ -71,7 +71,7 @@ $theConfig=[
     'globalId'=>0,
     'time'=>date('m-j'),
     'logFile'=>null,
-    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData']
+    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence','send_presence']
 ];
 $dir = 'log';
 if (!file_exists($dir)) {mkdir($dir, 0777, true);echo "文件夹 $dir 创建成功;";}
@@ -129,119 +129,6 @@ function handle_message($connection, $data){
                 //5.处理数据
                 $nowType=$jsonData['type'];
                 switch ($nowType){
-                    //获取服务器展示图像
-                    case 'get_serverImg':{
-                        //1检查是否包含一个time的参数
-                        if($newQIR->arrayPropertiesCheck('data',$jsonData)){
-                        if($newQIR->arrayPropertiesCheck('time',$jsonData['data'])){
-                            //获取map_img的最近修改时间
-                            $lt = $newFO->getFileModifiedTime(__SERVER_CONFIG__IMG__);
-                            //与客户端进行对比如果返回false说明相同或时间格式错误，则返回空数据，如果返回客户端落后于服务端则返回新数据
-                            if($newFO->compareTime($lt,$jsonData['data']['time'])==='false'){
-                                $connection->send('');
-                            }else if($newFO->compareTime($lt,$jsonData['data']['time'])===$lt){
-                                $pngData = $newFO->imageToBase64(__SERVER_CONFIG__IMG__);
-                                $sendJson = json_encode(['type'=>'send_serverImg','data'=>['string'=>$pngData,'time'=>$lt]]);
-                                $connection->send($sendJson);
-                            }
-                        }
-                        }
-                        break;
-                    }
-                    //获取服务器的配置
-                    case 'get_serverConfig':{
-                        $sendArr=['type'=>'send_serverConfig','data'=>[
-                            'key'=>__SERVER_CONFIG__KEY__,
-                            'url'=>__SERVER_CONFIG__URL__,
-                            'name'=>__SERVER_CONFIG__NAME__,
-                            'online_number'=>getOnlineNumber(),
-                            'max_online'=>__SERVER_CONFIG__MAX_USER__,
-                            'max_height'=>__SERVER_CONFIG__MAX_HEIGHT__,
-                            'min_height'=>__SERVER_CONFIG__MIN_HEIGHT__,
-                            'max_width'=>__SERVER_CONFIG__MAX_WIDTH__,
-                            'min_width'=>__SERVER_CONFIG__MIN_WIDTH__,
-                            'unit1_y'=>__SERVER_CONFIG__UNIT1_Y__,
-                            'offset_y'=>__SERVER_CONFIG__OFFSET_Y__,
-                            'unit1_x'=>__SERVER_CONFIG__UNIT1_X__,
-                            'offset_x'=>__SERVER_CONFIG__OFFSET_X__,
-                            'default_x'=>__SERVER_CONFIG__DEFAULT_X__,
-                            'default_y'=>__SERVER_CONFIG__DEFAULT_Y__,
-                            'resolution_x'=>__SERVER_CONFIG__RESOLUTION_X__,
-                            'resolution_y'=>__SERVER_CONFIG__RESOLUTION_Y__,
-                            'p0_x'=>__SERVER_CONFIG__P0_X__,
-                            'p0_y'=>__SERVER_CONFIG__P0_Y__,
-                            'max_layer'=>__SERVER_CONFIG__MAX_LAYER__,
-                            'min_layer'=>__SERVER_CONFIG__MIN_LAYER__,
-                            'default_layer'=>__SERVER_CONFIG__DEFAULT_LAYER__,
-                            'zoom_add'=>__SERVER_CONFIG__ZOOM_ADD__,
-                            //底图
-                            'enable_base_map'=>__SERVER_CONFIG__ENABLE_BASE_MAP__,
-                            'max_zoom'=>__SERVER_CONFIG__MAX_ZOOM__,
-                            'min_zoom'=>__SERVER_CONFIG__MIN_ZOOM__,
-                            'default_zoom'=>__SERVER_CONFIG__DEFAULT_ZOOM__,
-                            'base_map_url'=>__SERVER_CONFIG__BASE_MAP_URL__
-                        ]];
-                        $sendJson=json_encode($sendArr);
-                        $connection->send($sendJson);
-                        break;
-                    }
-                    //获取公钥数据
-                    case 'get_publickey':{
-                        //发送公钥
-                        $sendArr=['type'=>'publickey','data'=>getPublickey()];
-                        $sendJson=json_encode($sendArr);
-                        $connection->send($sendJson);
-                        break;
-                    }
-                    //登录数据
-                    case 'login':{
-                        //1.解密
-                        $Email=$jsonData['data']['email'];
-                        $Password=$jsonData['data']['password'];
-                        $RealPws=RsaTranslate($Password,'decode');
-                        //2.数据库进行查询
-                        if(LoginServer($Email,$RealPws)){
-                            //直接给该连接加入新属性
-                            $connection->email=$Email;
-                            //返回数据
-                            $sendArr=['type'=>'loginStatus','data'=>true];
-                            $sendJson=json_encode($sendArr);
-                            $connection->send($sendJson);
-                            $logData=['connectionId'=>$connection->id,'userEmail'=>$Email];
-                            createLog('login',$logData);
-                        }else{
-                            //查询为假
-                            //返回数据
-                            $sendArr=['type'=>'loginStatus','data'=>false];
-                            $sendJson=json_encode($sendArr);
-                            $connection->send($sendJson);
-                        }
-                        break;
-                    }
-                    //获取用户数据
-                    case 'get_userData':{
-                        if(property_exists($connection,'email')) {//必须是非匿名会话才能使用
-                            $theUserEmail = $connection->email;
-                            $ref = GetUserData($theUserEmail);
-                            //返回数据
-                            $sendArr = ['type' => 'send_userData', 'data' => $ref];
-                            //这里会将汉字之类的转化为base64
-                            $sendJson = json_encode($sendArr);
-                            $connection->send($sendJson);
-                        }
-                        break;
-                    }
-                    //获取地图数据
-                    case 'get_mapData':{
-                        if(property_exists($connection,'email')){//必须是非匿名会话才能使用
-                            $ref=GetMapData();
-                            //返回数据
-                            $sendArr=['type'=>'send_mapData','data'=>$ref];
-                            $sendJson=json_encode($sendArr);
-                            $connection->send($sendJson);
-                        }
-                        break;
-                    }
                     //广播数据
                     case 'broadcast':{
                         if(property_exists($connection,'email')) {//必须是非匿名会话才能使用
@@ -849,6 +736,149 @@ function handle_message($connection, $data){
                         }
                         break;
                     }
+                    //获取服务器展示图像
+                    case 'get_serverImg':{
+                        //1检查是否包含一个time的参数
+                        if($newQIR->arrayPropertiesCheck('data',$jsonData)){
+                        if($newQIR->arrayPropertiesCheck('time',$jsonData['data'])){
+                            //获取map_img的最近修改时间
+                            $lt = $newFO->getFileModifiedTime(__SERVER_CONFIG__IMG__);
+                            //与客户端进行对比如果返回false说明相同或时间格式错误，则返回空数据，如果返回客户端落后于服务端则返回新数据
+                            if($newFO->compareTime($lt,$jsonData['data']['time'])==='false'){
+                                $connection->send('');
+                            }else if($newFO->compareTime($lt,$jsonData['data']['time'])===$lt){
+                                $pngData = $newFO->imageToBase64(__SERVER_CONFIG__IMG__);
+                                $sendJson = json_encode(['type'=>'send_serverImg','data'=>['string'=>$pngData,'time'=>$lt]]);
+                                $connection->send($sendJson);
+                            }
+                        }
+                        }
+                        break;
+                    }
+                    //获取服务器的配置
+                    case 'get_serverConfig':{
+                        $sendArr=['type'=>'send_serverConfig','data'=>[
+                            'key'=>__SERVER_CONFIG__KEY__,
+                            'url'=>__SERVER_CONFIG__URL__,
+                            'name'=>__SERVER_CONFIG__NAME__,
+                            'online_number'=>getOnlineNumber(),
+                            'max_online'=>__SERVER_CONFIG__MAX_USER__,
+                            'max_height'=>__SERVER_CONFIG__MAX_HEIGHT__,
+                            'min_height'=>__SERVER_CONFIG__MIN_HEIGHT__,
+                            'max_width'=>__SERVER_CONFIG__MAX_WIDTH__,
+                            'min_width'=>__SERVER_CONFIG__MIN_WIDTH__,
+                            'unit1_y'=>__SERVER_CONFIG__UNIT1_Y__,
+                            'offset_y'=>__SERVER_CONFIG__OFFSET_Y__,
+                            'unit1_x'=>__SERVER_CONFIG__UNIT1_X__,
+                            'offset_x'=>__SERVER_CONFIG__OFFSET_X__,
+                            'default_x'=>__SERVER_CONFIG__DEFAULT_X__,
+                            'default_y'=>__SERVER_CONFIG__DEFAULT_Y__,
+                            'resolution_x'=>__SERVER_CONFIG__RESOLUTION_X__,
+                            'resolution_y'=>__SERVER_CONFIG__RESOLUTION_Y__,
+                            'p0_x'=>__SERVER_CONFIG__P0_X__,
+                            'p0_y'=>__SERVER_CONFIG__P0_Y__,
+                            'max_layer'=>__SERVER_CONFIG__MAX_LAYER__,
+                            'min_layer'=>__SERVER_CONFIG__MIN_LAYER__,
+                            'default_layer'=>__SERVER_CONFIG__DEFAULT_LAYER__,
+                            'zoom_add'=>__SERVER_CONFIG__ZOOM_ADD__,
+                            //底图
+                            'enable_base_map'=>__SERVER_CONFIG__ENABLE_BASE_MAP__,
+                            'max_zoom'=>__SERVER_CONFIG__MAX_ZOOM__,
+                            'min_zoom'=>__SERVER_CONFIG__MIN_ZOOM__,
+                            'default_zoom'=>__SERVER_CONFIG__DEFAULT_ZOOM__,
+                            'base_map_url'=>__SERVER_CONFIG__BASE_MAP_URL__
+                        ]];
+                        $sendJson=json_encode($sendArr);
+                        $connection->send($sendJson);
+                        break;
+                    }
+                    //获取公钥数据
+                    case 'get_publickey':{
+                        //发送公钥
+                        $sendArr=['type'=>'publickey','data'=>getPublickey()];
+                        $sendJson=json_encode($sendArr);
+                        $connection->send($sendJson);
+                        break;
+                    }
+                    //登录数据
+                    case 'login':{
+                        //1.解密
+                        $Email=$jsonData['data']['email'];
+                        $Password=$jsonData['data']['password'];
+                        $RealPws=RsaTranslate($Password,'decode');
+                        //2.数据库进行查询
+                        $logUserData=LoginServer($Email,$RealPws);
+                        if($logUserData!==false){
+                            //直接给该连接加入新属性
+                            $connection->email=$Email;
+                            $connection->userData=$logUserData;
+                            //返回数据
+                            $sendArr=['type'=>'loginStatus','data'=>true];
+                            $sendJson=json_encode($sendArr);
+                            $connection->send($sendJson);
+                            $logData=['connectionId'=>$connection->id,'userEmail'=>$Email];
+                            //登录用户数据
+                            //广播上线通知
+                            foreach ($socket_worker->connections as $con) {
+                                if($newQIR->arrayPropertiesCheck('email',$con)){
+                                    $sendArrB=['type'=>'broadcast','class'=>'logIn','data'=>$logUserData];
+                                    $sendJsonB=json_encode($sendArrB);
+                                    $con->send($sendJsonB);
+                                }
+                            }
+                            createLog('login',$logData);
+                        }else{
+                            //查询为假
+                            //返回数据
+                            $sendArr=['type'=>'loginStatus','data'=>false];
+                            $sendJson=json_encode($sendArr);
+                            $connection->send($sendJson);
+                        }
+                        break;
+                    }
+                    //获取个人用户数据
+                    case 'get_userData':{
+                        if(property_exists($connection,'email')) {//必须是非匿名会话才能使用
+                            $theUserEmail = $connection->email;
+                            $ref = GetUserData($theUserEmail);
+                            //返回数据
+                            $sendArr = ['type' => 'send_userData', 'data' => $ref];
+                            //这里会将汉字之类的转化为base64
+                            $sendJson = json_encode($sendArr);
+                            $connection->send($sendJson);
+                        }
+                        break;
+                    }
+                    //获取地图数据
+                    case 'get_mapData':{
+                        if(property_exists($connection,'email')){//必须是非匿名会话才能使用
+                            $ref=GetMapData();
+                            //返回数据
+                            $sendArr=['type'=>'send_mapData','data'=>$ref];
+                            $sendJson=json_encode($sendArr);
+                            $connection->send($sendJson);
+                        }
+                        break;
+                    }
+                    //获取在线用户数据
+                    case 'get_presence':{
+                        if(property_exists($connection,'email')) {//必须是非匿名会话才能使用
+                            //1遍历所有连接同时查找非匿名连接并提取userData
+                            $ref=array();
+                            foreach ($socket_worker->connections as $con) {
+                                if($newQIR->arrayPropertiesCheck('email',$con)){
+                                    if($newQIR->arrayPropertiesCheck('userData',$con)){
+                                        array_push($ref,$con->userData);
+                                    }
+                                }
+                            }
+                            //返回数据
+                            $sendArr=['type'=>'send_presence','data'=>$ref];
+                            $sendJson=json_encode($sendArr);
+                            $connection->send($sendJson);
+                        }
+                        break;
+                    }
                 }
             }
         }
@@ -856,13 +886,22 @@ function handle_message($connection, $data){
 }
 //客户端断开连接
 function handle_close($connection){
-    global $theData,$theConfig;
-    //在已登录用户中查询该id并删除掉
-    //1.获取当前发送消息者的会话id
+    global $socket_worker,$newQIR;
     $nowConId=$connection->id;
-    //2.获取用户名
-    @$userEmail=$connection->emial;
-    if($userEmail==''){$userEmail='未知';}
+    if(property_exists($connection,'userData')) {//非匿名用户
+        $userEmail=$connection->userData['userEmail'];
+        //广播
+        foreach ($socket_worker->connections as $con) {
+            if($newQIR->arrayPropertiesCheck('email',$con)){
+                if($con->email===$userEmail){continue;}
+                $sendArr=['type'=>'broadcast','class'=>'logOut','data'=>['email'=>$userEmail]];
+                $sendJson=json_encode($sendArr);
+                $con->send($sendJson);
+            }
+        }
+    }else{//匿名用户
+        $userEmail='匿名';
+    }
     $logData=['connectionId'=>$nowConId,'userEmail'=>$userEmail];
     createLog('disconnect',$logData);
 }

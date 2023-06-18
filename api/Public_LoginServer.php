@@ -1,5 +1,5 @@
 <?php
-function LoginServer($email,$password){
+function LoginServer($email,$password){//存在则返回用户数据，否则返回false
     global $mysql_public_server_address,$mysql_public_user,$mysql_public_password,$mysql_public_db_name;
     //检测输入
     $pattern = "/[^a-zA-Z0-9_@.+\/=-]/";
@@ -14,10 +14,10 @@ function LoginServer($email,$password){
         $dataHouse=mysqli_select_db($link,$mysql_public_db_name);
         //编辑查询语句
         $sql="SELECT * FROM account_data cou WHERE cou.user_email='$email' AND cou.pass_word='$password'";
-        $sqlTest=mysqli_query($link,$sql);
-        if(mysqli_num_rows($sqlTest)==1){
-            //正确的密码和账号
-            return true;
+        $sqlQuery=mysqli_query($link,$sql);
+        if(mysqli_num_rows($sqlQuery)==1){
+            $userData=mysqli_fetch_assoc($sqlQuery);
+            return ['userEmail'=>$userData['user_email'],'userQq'=>$userData['user_qq'],'userName'=>$userData['user_name'],'headColor'=>$userData['head_color']];
         }else{
             //相反
             return false;
