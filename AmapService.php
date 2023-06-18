@@ -897,13 +897,26 @@ function handle_close($connection){
     $nowConId=$connection->id;
     if(property_exists($connection,'userData')) {//非匿名用户
         $userEmail=$connection->userData['userEmail'];
-        //广播
+        $lock=false;//检测该用户是否还有在其他页面或设备有登录，有则跳过此下线广播
         foreach ($socket_worker->connections as $con) {
             if(property_exists($con,'email')){
-                if($con->email===$userEmail){continue;}
-                $sendArr=['type'=>'broadcast','class'=>'logOut','data'=>['email'=>$userEmail]];
-                $sendJson=json_encode($sendArr);
-                $con->send($sendJson);
+                if($con->id===$connection->id){
+                    continue;
+                }
+                if($con->userData['userEmail']===$userEmail){
+                    $lock=true;
+                    break;
+                }
+            }
+        }
+        if($lock===false){
+            foreach ($socket_worker->connections as $con) {//下线广播
+                if(property_exists($con,'email')){
+                    if($con->email===$userEmail){continue;}
+                    $sendArr=['type'=>'broadcast','class'=>'logOut','data'=>['email'=>$userEmail]];
+                    $sendJson=json_encode($sendArr);
+                    $con->send($sendJson);
+                }
             }
         }
     }else{//匿名用户
