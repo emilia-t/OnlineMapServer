@@ -820,7 +820,7 @@ function handle_message($connection, $data){
                             //登录用户数据
                             //广播上线通知
                             foreach ($socket_worker->connections as $con) {
-                                if($newQIR->arrayPropertiesCheck('email',$con)){
+                                if(property_exists($con,'email')){
                                     $sendArrB=['type'=>'broadcast','class'=>'logIn','data'=>$logUserData];
                                     $sendJsonB=json_encode($sendArrB);
                                     $con->send($sendJsonB);
@@ -866,8 +866,8 @@ function handle_message($connection, $data){
                             //1遍历所有连接同时查找非匿名连接并提取userData
                             $ref=array();
                             foreach ($socket_worker->connections as $con) {
-                                if($newQIR->arrayPropertiesCheck('email',$con)){
-                                    if($newQIR->arrayPropertiesCheck('userData',$con)){
+                                if(property_exists($con,'email')){
+                                    if(property_exists($con,'userData')){
                                         array_push($ref,$con->userData);
                                     }
                                 }
@@ -892,7 +892,7 @@ function handle_close($connection){
         $userEmail=$connection->userData['userEmail'];
         //广播
         foreach ($socket_worker->connections as $con) {
-            if($newQIR->arrayPropertiesCheck('email',$con)){
+            if(property_exists($con,'email')){
                 if($con->email===$userEmail){continue;}
                 $sendArr=['type'=>'broadcast','class'=>'logOut','data'=>['email'=>$userEmail]];
                 $sendJson=json_encode($sendArr);
