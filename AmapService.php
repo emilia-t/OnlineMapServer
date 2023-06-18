@@ -863,17 +863,24 @@ function handle_message($connection, $data){
                     //获取在线用户数据
                     case 'get_presence':{
                         if(property_exists($connection,'email')) {//必须是非匿名会话才能使用
-                            //1遍历所有连接同时查找非匿名连接并提取userData
                             $ref=array();
                             foreach ($socket_worker->connections as $con) {
                                 if(property_exists($con,'email')){
-                                    if(property_exists($con,'userData')){
-                                        array_push($ref,$con->userData);
+                                    if(property_exists($con,'userData')){//去重
+                                        $lock=false;
+                                        foreach ($ref as $it){
+                                            if($con->userData==$it) {
+                                                $lock=true;
+                                                break;
+                                            }
+                                        }
+                                        if($lock===false){
+                                            array_push($ref,$con->userData);
+                                        }
                                     }
                                 }
                             }
-                            //返回数据
-                            $sendArr=['type'=>'send_presence','data'=>$ref];
+                            $sendArr=['type'=>'send_presence','data'=>$ref];//返回数据
                             $sendJson=json_encode($sendArr);
                             $connection->send($sendJson);
                         }
