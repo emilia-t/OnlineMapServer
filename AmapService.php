@@ -415,7 +415,7 @@ function handle_message($connection, $data){
                                     //广播新增点
                                     case 'point':{
                                         //0.构建默认数据内容
-                                        $basicStructure=['id'=>'temp','type'=>'point','points'=>[],'point'=>null,'color'=>'','length'=>null,'width'=>2,'size'=>null,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>[]];
+                                        $basicStructure=['id'=>'temp','type'=>'point','points'=>[],'point'=>null,'color'=>'','length'=>null,'width'=>2,'size'=>null,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>[],'custom'=>null];
                                         //1.检查是否包含data键名
                                         if(!$newQIR->arrayPropertiesCheck('data',$jsonData)){break;}
                                         //2.检查data是否为数组
@@ -452,7 +452,7 @@ function handle_message($connection, $data){
                                         }else{
                                             $basicStructure['width']=2;
                                         }
-                                        //8.details检查啊
+                                        //8.details检查
                                         //8.1检查details是否存在
                                         if($newQIR->arrayPropertiesCheck('details',$jsonData['data'])){
                                             //8.2检查details数据结构是否为数组
@@ -480,6 +480,7 @@ function handle_message($connection, $data){
                                         $basicStructure['point']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['point']));
                                         $basicStructure['points']=$newJDT->btoa($newJDT->jsonPack([$jsonData['data']['point']]));
                                         $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['details']));
+                                        $basicStructure['custom']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['custom']));
                                         //全部检查完毕
                                         //上传至数据库
                                         $updateStatus=$newMDBE->uploadPointData($basicStructure);
@@ -562,6 +563,7 @@ function handle_message($connection, $data){
                                     case 'updateElement':{
                                         //0.1details
                                         $details=[];
+                                        $custom=null;
                                         //0.2构建默认数据内容
                                         $basicStructure=[];
                                         //1.检查是否包含data键名
@@ -616,10 +618,16 @@ function handle_message($connection, $data){
                                                 }
                                             }
                                         }
+                                        if($newQIR->arrayPropertiesCheck('custom',$jsonData['data']['changes'])){
+                                            $custom=$jsonData['data']['changes']['custom'];
+                                        }
                                         //全部检查完毕
                                         //打包$details
                                         if(count($details)!=0){
                                             $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack($details));
+                                        }
+                                        if($custom!=null){
+                                            $basicStructure['custom']=$newJDT->btoa($newJDT->jsonPack($custom));
                                         }
                                         //上传数据库
                                         if($newMDBE->updateElementData($basicStructure)){
@@ -783,6 +791,7 @@ function handle_message($connection, $data){
                             'zoom_add'=>__SERVER_CONFIG__ZOOM_ADD__,
                             //底图
                             'enable_base_map'=>__SERVER_CONFIG__ENABLE_BASE_MAP__,
+                            'base_map_type'=>__SERVER_CONFIG__BASE_MAP_TYPE__,
                             'max_zoom'=>__SERVER_CONFIG__MAX_ZOOM__,
                             'min_zoom'=>__SERVER_CONFIG__MIN_ZOOM__,
                             'default_zoom'=>__SERVER_CONFIG__DEFAULT_ZOOM__,

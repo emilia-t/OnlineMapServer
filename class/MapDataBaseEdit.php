@@ -53,7 +53,7 @@ class MapDataBaseEdit
             //选择库
             $dataHouse = mysqli_select_db($link, $mysql_public_db_name);
             //编辑查询语句
-            $sql = "INSERT INTO {$this->mapDateSheetName} (id,type,points,point,color,length,width,size,child_relations,father_relation,child_nodes,father_node,details) VALUES (NULL,'{$pointObj['type']}','{$pointObj['points']}','{$pointObj['point']}','{$pointObj['color']}',NULL,{$pointObj['width']},NULL,NULL,NULL,NULL,NULL,'{$pointObj['details']}')";
+            $sql = "INSERT INTO {$this->mapDateSheetName} (id,type,points,point,color,length,width,size,child_relations,father_relation,child_nodes,father_node,details,custom) VALUES (NULL,'{$pointObj['type']}','{$pointObj['points']}','{$pointObj['point']}','{$pointObj['color']}',NULL,{$pointObj['width']},NULL,NULL,NULL,NULL,NULL,'{$pointObj['details']}','{$pointObj['custom']}')";
             $sqlQu = mysqli_query($link, $sql);
             if ($sqlQu) {
                 mysqli_close($link);
