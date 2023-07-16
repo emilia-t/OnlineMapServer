@@ -3,6 +3,7 @@
 <php-config>
  **/
 error_reporting(E_ALL);
+date_default_timezone_set('Asia/Hong_Kong');
 //启用PDO
 ini_set('extension', 'pdo_mysql');
 /**
@@ -736,6 +737,42 @@ function handle_message($connection, $data){
                                             //写入日志文件
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'id'=>$nodeObject['id']];
                                             createLog('updateElementNode',$logData);
+                                        }
+                                        break;
+                                    }
+                                    //选中要素
+                                    case 'selectIngElement':{
+                                        $conveyor=$connection->email;
+                                        $ID=$jsonData['data'];
+                                        $Time=creatDate();
+                                        $sendArr=['type'=>'broadcast','class'=>'selectIngElement','conveyor'=>$conveyor,'time'=>$Time,'data'=>$ID];
+                                        $sendJson=json_encode($sendArr);
+                                        //更改成功则广播所有人
+                                        foreach ($socket_worker->connections as $con) {
+                                            //避免发送给匿名用户
+                                            if(property_exists($con,'email')){
+                                                if($con->email != ''){
+                                                    $con->send($sendJson);
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+                                    //未选中要素
+                                    case 'selectEndElement':{
+                                        $conveyor=$connection->email;
+                                        $ID=$jsonData['data'];
+                                        $Time=creatDate();
+                                        $sendArr=['type'=>'broadcast','class'=>'selectEndElement','conveyor'=>$conveyor,'time'=>$Time,'data'=>$ID];
+                                        $sendJson=json_encode($sendArr);
+                                        //更改成功则广播所有人
+                                        foreach ($socket_worker->connections as $con) {
+                                            //避免发送给匿名用户
+                                            if(property_exists($con,'email')){
+                                                if($con->email != ''){
+                                                    $con->send($sendJson);
+                                                }
+                                            }
                                         }
                                         break;
                                     }
