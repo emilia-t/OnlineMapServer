@@ -166,7 +166,7 @@ function handle_message($connection, $data){//收到客户端消息
                                         break;
                                     }
                                     case 'area':{//新增区域
-                                        $basicStructure=['id'=>'temp','type'=>'area','points'=>[],'point'=>null,'color'=>'','length'=>null,'width'=>2,'size'=>null,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>null];//0.构建默认数据内容
+                                        $basicStructure=['id'=>'temp','type'=>'area','points'=>[],'point'=>null,'color'=>'','phase'=>1,'width'=>2,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>null];//0.构建默认数据内容
                                         if(!$newQIR->arrayPropertiesCheck('data',$jsonData)){break;}//1.检查是否包含data键名
                                         if(!$newQIR->getDataType($jsonData['data'])=='array'){break;}//2.检查data是否为数组
                                         if(!$newQIR->arrayPropertiesCheck('point',$jsonData['data'])){break;}//3.检查是否包含point属性$pwd jsonData['data']
@@ -248,7 +248,7 @@ function handle_message($connection, $data){//收到客户端消息
                                     //新增线段
                                     case 'line':{
                                         //0.构建默认数据内容
-                                        $basicStructure=['id'=>'temp','type'=>'line','points'=>[],'point'=>null,'color'=>'','length'=>null,'width'=>2,'size'=>null,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>null];
+                                        $basicStructure=['id'=>'temp','type'=>'line','points'=>[],'point'=>null,'color'=>'','phase'=>1,'width'=>2,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>null];
                                         //1.检查是否包含data键名
                                         if(!$newQIR->arrayPropertiesCheck('data',$jsonData)){break;}
                                         //2.检查data是否为数组
@@ -365,7 +365,7 @@ function handle_message($connection, $data){//收到客户端消息
                                     //广播新增点
                                     case 'point':{
                                         //0.构建默认数据内容
-                                        $basicStructure=['id'=>'temp','type'=>'point','points'=>[],'point'=>null,'color'=>'','length'=>null,'width'=>2,'size'=>null,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>[],'custom'=>null];
+                                        $basicStructure=['id'=>'temp','type'=>'point','points'=>[],'point'=>null,'color'=>'','phase'=>1,'width'=>2,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>[],'custom'=>null];
                                         //1.检查是否包含data键名
                                         if(!$newQIR->arrayPropertiesCheck('data',$jsonData)){break;}
                                         //2.检查data是否为数组
@@ -471,7 +471,7 @@ function handle_message($connection, $data){//收到客户端消息
                                             $sendArr=['type'=>'broadcast','class'=>'deleteElement','conveyor'=>$conveyor,'time'=>$Time,'data'=>['id'=>$ID]];
                                             $sendJson=json_encode($sendArr);
                                             //更改数据库
-                                            if($newMDBE->deleteElementData($ID)){
+                                            if($newMDBE->updateElementPhase($ID,2)){
                                                 //更改成功则广播所有人
                                                 foreach ($socket_worker->connections as $con) {
                                                     //避免发送给匿名用户
