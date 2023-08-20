@@ -6,8 +6,22 @@
 class MapDataBaseEdit
 {
     private $mapDateSheetName;
+    private $linkMysqli;
+    private $linkPdo;
     public function __construct($dateSheetName='map_0_data'){
         $this->mapDateSheetName=$dateSheetName;
+        $this->startSetting();
+    }
+    function startSetting(){
+        $this->linkDatabase();
+    }
+    function linkDatabase(){
+        global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
+        $this->linkMysqli=mysqli_connect($mysql_public_server_address, $mysql_public_user, $mysql_public_password);
+        mysqli_select_db($this->linkMysqli, $mysql_public_db_name);
+        $dsn='mysql:host='.$mysql_public_server_address.';dbname='.$mysql_public_db_name;
+        $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION];
+        $this->linkPdo=new PDO($dsn,$mysql_public_user,$mysql_public_password,$options);
     }
     /**上传线数据，请注意不要使用二维数组，二维值请转为json->base64
      * @param $lineObj array
@@ -15,11 +29,7 @@ class MapDataBaseEdit
      */
     function uploadLineData($lineObj){
         try {
-            global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
-            // 连接数据库
-            $dsn='mysql:host='.$mysql_public_server_address.';dbname='.$mysql_public_db_name;
-            $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION];
-            $db=new PDO($dsn,$mysql_public_user,$mysql_public_password,$options);
+            $db=$this->linkPdo;
             $sql="INSERT INTO {$this->mapDateSheetName} (id,type,points,point,color,phase,width,child_relations,father_relation,child_nodes,father_node,details) VALUES (NULL,:typ,:points,:point,:color,:phase,:width,NULL,NULL,NULL,NULL,:details)";
             //准备预处理语句
             $stmt=$db->prepare($sql);
@@ -48,20 +58,13 @@ class MapDataBaseEdit
      */
     function uploadPointData($pointObj){
         try {
-            global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
-            //连接库
-            $link = mysqli_connect($mysql_public_server_address, $mysql_public_user, $mysql_public_password);
-            //选择库
-            $dataHouse = mysqli_select_db($link, $mysql_public_db_name);
+            $link = $this->linkMysqli;
             //编辑查询语句
             $sql = "INSERT INTO {$this->mapDateSheetName} (id,type,points,point,color,phase,width,child_relations,father_relation,child_nodes,father_node,details,custom) VALUES (NULL,'{$pointObj['type']}','{$pointObj['points']}','{$pointObj['point']}','{$pointObj['color']}',{$pointObj['phase']},{$pointObj['width']},NULL,NULL,NULL,NULL,'{$pointObj['details']}','{$pointObj['custom']}')";
             $sqlQu = mysqli_query($link, $sql);
             if ($sqlQu) {
-                mysqli_close($link);
                 return true;
             } else {
-                //相反
-                mysqli_close($link);
                 return false;
             }
         }catch (Exception $E){
@@ -74,21 +77,14 @@ class MapDataBaseEdit
      */
     function selectNewId(){
         try {
-            global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
-            //连接库
-            $link = mysqli_connect($mysql_public_server_address, $mysql_public_user, $mysql_public_password);
-            //选择库
-            $dataHouse = mysqli_select_db($link, $mysql_public_db_name);
+            $link = $this->linkMysqli;
             //编辑查询语句
             $sql = "SELECT max(id) FROM {$this->mapDateSheetName}";
             $sqlQu = mysqli_query($link, $sql);
             $ref=mysqli_fetch_array($sqlQu,MYSQLI_NUM);
             if ($sqlQu) {
-                mysqli_close($link);
                 return $ref[0];
             } else {
-                //相反
-                mysqli_close($link);
                 return false;
             }
         }catch (Exception $E){
@@ -101,20 +97,12 @@ class MapDataBaseEdit
      */
     function deleteElementData($elementId){
         try{
-            global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
-            //连接库
-            $link = mysqli_connect($mysql_public_server_address, $mysql_public_user, $mysql_public_password);
-            //选择库
-            $dataHouse = mysqli_select_db($link, $mysql_public_db_name);
-            //编辑查询语句
+            $link = $this->linkMysqli;
             $sql = "DELETE FROM {$this->mapDateSheetName} WHERE id='{$elementId}'";
             $sqlQu = mysqli_query($link, $sql);
             if ($sqlQu) {
-                mysqli_close($link);
                 return true;
             } else {
-                //相反
-                mysqli_close($link);
                 return false;
             }
         }
@@ -128,20 +116,16 @@ class MapDataBaseEdit
      */
     function updateElementPhase($elementId,$phase){
         try{
-            global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
-            //连接库
-            $link = mysqli_connect($mysql_public_server_address, $mysql_public_user, $mysql_public_password);
-            //选择库
-            $dataHouse = mysqli_select_db($link, $mysql_public_db_name);
-            //编辑查询语句
+            $link = $this->linkMysqli;
             $sql = "UPDATE {$this->mapDateSheetName} SET phase={$phase} WHERE id='{$elementId}'";
-            $sqlQu = mysqli_query($link, $sql);
-            if ($sqlQu) {
-                mysqli_close($link);
-                return true;
+            $result = mysqli_query($link, $sql);
+            if ($result) {
+                if(mysqli_affected_rows($link)===1){
+                    return true;
+                }else{
+                    return false;
+                }
             } else {
-                //相反
-                mysqli_close($link);
                 return false;
             }
         }
@@ -155,11 +139,7 @@ class MapDataBaseEdit
      */
     function updateElementData($newData){
         try{
-            global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
-            // 连接数据库
-            $dsn='mysql:host='.$mysql_public_server_address.';dbname='.$mysql_public_db_name;
-            $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION];
-            $db=new PDO($dsn,$mysql_public_user,$mysql_public_password,$options);
+            $db=$this->linkPdo;
             //获取id属性
             $id=$newData['id'];
             //移除id属性
@@ -186,24 +166,24 @@ class MapDataBaseEdit
     }
     /**根据ID获取一个地图要素的数据
      * @param int $elementId
-     * @return array
+     * @return false
      */
     function getElementById($elementId){
-        global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
-        // 建立数据库连接
-        $dsn = "mysql:host=$mysql_public_server_address;dbname=$mysql_public_db_name;charset=utf8";
-        $user = $mysql_public_user;
-        $password = $mysql_public_password;
         try {
-            $dbh = new PDO($dsn, $user, $password);
+            $dbh = $this->linkPdo;
             $sql = "SELECT * FROM $this->mapDateSheetName WHERE id = :id";
             $stmt = $dbh->prepare($sql);// 创建语句对象
             $stmt->bindParam(':id', $elementId, PDO::PARAM_INT);// 绑定参数
             $stmt->execute();// 执行查询
-            return $stmt->fetch(PDO::FETCH_ASSOC);// 获取结果
+            $rowCount=$stmt->rowCount();
+            if($rowCount===1){
+                return $stmt->fetch(PDO::FETCH_ASSOC);// 获取结果
+            }else{
+                return false;
+            }
         } catch (PDOException $e) {
             echo '数据库查询错误: ' . $e->getMessage();
+            return false;
         }
-        $dbh = null;// 关闭连接
     }
 }

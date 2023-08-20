@@ -73,7 +73,7 @@ $theConfig=[
     'globalId'=>0,
     'time'=>date('m-j'),
     'logFile'=>null,
-    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence','send_presence','get_activeData','send_activeData']
+    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence','send_presence','get_activeData','send_activeData','send_error','send_correct']
 ];
 $dir = 'log';
 if (!file_exists($dir)) {mkdir($dir, 0777, true);echo "文件夹 $dir 创建成功;";}
@@ -232,6 +232,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             $dateTime=creatDate();
                                             $sdJson=['type'=>'broadcast','class'=>'area','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
                                             $sendJson=json_encode($sdJson);
+                                            //返回成功指令
+                                            sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);
                                             foreach ($socket_worker->connections as $con) {
                                                 //避免发送给匿名用户
                                                 if(property_exists($con,'email')){
@@ -242,6 +244,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             }
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
                                             createLog('userAddArea',$logData);
+                                        }else{
+                                            sendError('upload',$jsonData['data'],'database upload fail',$connection);
                                         }
                                         break;
                                     }
@@ -349,6 +353,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             $sdJson=['type'=>'broadcast','class'=>'line','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
                                             //返回数据
                                             $sendJson=json_encode($sdJson);
+                                            //返回成功指令
+                                            sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);
                                             foreach ($socket_worker->connections as $con) {
                                                 //避免发送给匿名用户
                                                 if(property_exists($con,'email')){
@@ -359,6 +365,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             }
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
                                             createLog('userAddLine',$logData);
+                                        }else{
+                                            sendError('upload',$jsonData['data'],'database upload fail',$connection);
                                         }
                                         break;
                                     }
@@ -449,6 +457,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             $sdJson=['type'=>'broadcast','class'=>'point','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
                                             //返回数据
                                             $sendJson=json_encode($sdJson);
+                                            //返回成功指令
+                                            sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);
                                             foreach ($socket_worker->connections as $con) {
                                                 //避免发送给匿名用户
                                                 if(property_exists($con,'email')){
@@ -459,6 +469,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             }
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
                                             createLog('userAddPoint',$logData);
+                                        }else{
+                                            sendError('upload',$jsonData['data'],'database upload fail',$connection);
                                         }
                                         break;
                                     }
@@ -471,8 +483,10 @@ function handle_message($connection, $data){//收到客户端消息
                                             $sendArr=['type'=>'broadcast','class'=>'deleteElement','conveyor'=>$conveyor,'time'=>$Time,'data'=>['id'=>$ID]];
                                             $sendJson=json_encode($sendArr);
                                             //更改数据库
-                                            if($newMDBE->updateElementPhase($ID,2)){
+                                            $updateStatus=$newMDBE->updateElementPhase($ID,2);
+                                            if($updateStatus===true){
                                                 //更改成功则广播所有人
+                                                sendCorrect('delete',['rid'=>$ID],$connection);
                                                 foreach ($socket_worker->connections as $con) {
                                                     //避免发送给匿名用户
                                                     if(property_exists($con,'email')){
@@ -481,6 +495,8 @@ function handle_message($connection, $data){//收到客户端消息
                                                         }
                                                     }
                                                 }
+                                            }else{
+                                                sendError('delete',$jsonData['data'],'database delete fail',$connection);
                                             }
                                             //写入日志
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$conveyor,'id'=>$ID];
@@ -580,9 +596,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             $basicStructure['custom']=$newJDT->btoa($newJDT->jsonPack($custom));
                                         }
                                         //上传数据库
-                                        if($newMDBE->updateElementData($basicStructure)){
-                                            //广播给登录用户
-                                            //发送广播的email
+                                        $isSuccess=$newMDBE->updateElementData($basicStructure);
+                                        if($isSuccess){//更新成功
                                             $broadcastEmail=$connection->email;
                                             //时间
                                             $dateTime=creatDate();
@@ -590,6 +605,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             $sdJson=['type'=>'broadcast','class'=>'updateElement','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
                                             //返回数据
                                             $sendJson=json_encode($sdJson);
+                                            //发送成功信息
+                                            sendCorrect('updateElement',['vid'=>$jsonData['data']['updateId'],'rid'=>$jsonData['data']['id']],$connection);
                                             foreach ($socket_worker->connections as $con){
                                                 //避免发送给匿名用户
                                                 if(property_exists($con,'email')){
@@ -601,6 +618,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             //写入日志文件
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'id'=>$basicStructure['id']];
                                             createLog('updateElement',$logData);
+                                        }else{//更新失败
+                                            sendError('updateElement',$jsonData['data'],'database error',$connection);
                                         }
                                         break;
                                     }
@@ -658,7 +677,8 @@ function handle_message($connection, $data){//收到客户端消息
                                         //转化为b
                                         $nodeObject['points']=$newJDT->btoa($nodeObject['points']);
                                         //上传数据库
-                                        if($newMDBE->updateElementData($nodeObject)){
+                                        $isSuccess=$newMDBE->updateElementData($nodeObject);
+                                        if($isSuccess){
                                             if($newQIR->arrayPropertiesCheck('type',$jsonData['data'])){
                                                 $nodeObject['type']=$jsonData['data']['type'];
                                             }
@@ -671,6 +691,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             $sdJson=['type'=>'broadcast','class'=>'updateElementNode','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$nodeObject];
                                             //返回数据
                                             $sendJson=json_encode($sdJson);
+                                            //发送成功信息
+                                            sendCorrect('updateNode',['vid'=>$jsonData['data']['updateId'],'rid'=>$jsonData['data']['id']],$connection);
                                             foreach ($socket_worker->connections as $con){
                                                 //避免发送给匿名用户st
                                                 if(property_exists($con,'email')){
@@ -686,6 +708,8 @@ function handle_message($connection, $data){//收到客户端消息
                                             //写入日志文件
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'id'=>$nodeObject['id']];
                                             createLog('updateElementNode',$logData);
+                                        }else{
+                                            sendError('updateNode',$jsonData['data'],'update node fail',$connection);
                                         }
                                         break;
                                     }
@@ -822,6 +846,39 @@ function handle_message($connection, $data){//收到客户端消息
                                                     $con->send($sendJson);
                                                 }
                                             }
+                                        }
+                                        break;
+                                    }
+                                    //恢复被删除的元素
+                                    case 'restoreElement':{
+                                        try{
+                                            $ID=$jsonData['data'];
+                                            $elementData=$newMDBE->getElementById($ID);
+                                            if($elementData===false){
+                                                return false;
+                                            }
+                                            $broadcastEmail=$connection->email;
+                                            $Time=creatDate();
+                                            $sdJson=['type'=>'broadcast','class'=>$elementData['type'],'conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>$elementData];
+                                            $sendJson=json_encode($sdJson);
+                                            //更改元素
+                                            $updateStatus=$newMDBE->updateElementPhase($ID,1);
+                                            if($updateStatus===true){
+                                                foreach ($socket_worker->connections as $con) {
+                                                    //避免发送给匿名用户
+                                                    if(property_exists($con,'email')){
+                                                        if($con->email != ''){
+                                                            $con->send($sendJson);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            //写入日志
+                                            $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'id'=>$ID];
+                                            createLog('restoreElement',$logData);
+                                        }catch (Exception $E){
+                                            print_r('未知错误：restoreElement收到不明信息:');
+                                            print_r($jsonData);
                                         }
                                         break;
                                     }
@@ -1217,6 +1274,16 @@ ETX;
             fwrite($theConfig['logFile'],$log);
             break;
         }
+        case 'restoreElement':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};恢复一个元素:{$logData['id']}
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
         case 'updateElementNode':{
             $log=<<<ETX
 
@@ -1249,6 +1316,20 @@ ETX;
         }
         default:{}
     }
+}
+//发送错误信息
+function sendError($class,$data,$message,$con){
+    $broadcastEmail=$con->email;
+    $dateTime=creatDate();
+    $sendJson=json_encode(['type'=>'send_error','class'=>$class,'conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>['source'=>$data,'message'=>$message]]);
+    $con->send($sendJson);
+}
+//发送成功信息
+function sendCorrect($class,$data,$con){
+    $broadcastEmail=$con->email;
+    $dateTime=creatDate();
+    $sendJson=json_encode(['type'=>'send_correct','class'=>$class,'conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$data]);
+    $con->send($sendJson);
 }
 /**
 </internal-procedures>
