@@ -54,7 +54,7 @@ require './class/FileOperation.php';
  **/
 $newQIR=new QualityInspectionRoom(false);
 $newJDT=new JsonDisposalTool();
-$newMDBE=new MapDataBaseEdit($mysql_public_sheet_name);
+$newMDBE=new MapDataBaseEdit($mysql_public_sheet_name,$mysql_public_layer_name);
 $newFO=new FileOperation();
 /**
 </class>
@@ -73,7 +73,7 @@ $theConfig=[
     'globalId'=>0,
     'time'=>date('m-j'),
     'logFile'=>null,
-    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence','send_presence','get_activeData','send_activeData','send_error','send_correct']
+    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence','send_presence','get_activeData','send_activeData','send_error','send_correct','get_mapLayer','send_mapLayer']
 ];
 $dir = 'log';
 if (!file_exists($dir)) {mkdir($dir, 0777, true);echo "文件夹 $dir 创建成功;";}
@@ -1017,6 +1017,16 @@ function handle_message($connection, $data){//收到客户端消息
                             $ref=GetMapData();
                             //返回数据
                             $sendArr=['type'=>'send_mapData','data'=>$ref];
+                            $sendJson=json_encode($sendArr);
+                            $connection->send($sendJson);
+                        }
+                        break;
+                    }
+                    //获取图层数据
+                    case 'get_mapLayer':{
+                        if(property_exists($connection,'email')){//必须是非匿名会话才能使用
+                            $ref=$newMDBE->getLayerData();
+                            $sendArr=['type'=>'send_mapLayer','data'=>$ref];
                             $sendJson=json_encode($sendArr);
                             $connection->send($sendJson);
                         }

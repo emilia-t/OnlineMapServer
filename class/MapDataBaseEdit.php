@@ -6,14 +6,37 @@
 class MapDataBaseEdit
 {
     private $mapDateSheetName;
+    private $mapDateLayerName;
     private $linkMysqli;
     private $linkPdo;
-    public function __construct($dateSheetName='map_0_data'){
+    public function __construct($dateSheetName='map_0_data',$dateLayerName='map_0_layer'){
         $this->mapDateSheetName=$dateSheetName;
+        $this->mapDateLayerName=$dateLayerName;
         $this->startSetting();
     }
     function startSetting(){
         $this->linkDatabase();
+    }
+    /**获取图层数据
+     * @param $lineObj array
+     * @return array|boolean
+     */
+    function getLayerData(){
+        try {
+            $dbh = $this->linkPdo;
+            $sql = "SELECT * FROM $this->mapDateLayerName";
+            $stmt = $dbh->prepare($sql);// 创建语句对象
+            $stmt->execute();// 执行查询
+            $rowCount=$stmt->rowCount();
+            if($rowCount>1){
+                return $stmt->fetch(PDO::FETCH_ASSOC);// 获取结果
+            }else{
+                return [];
+            }
+        } catch (PDOException $e) {
+            echo '数据库查询错误: ' . $e->getMessage();
+            return false;
+        }
     }
     function linkDatabase(){
         global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;

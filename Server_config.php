@@ -14,6 +14,8 @@ $mysql_public_password="password";
 $mysql_public_db_name="map";
 //地图表名称，请根据双击配置，如果没有我们会创建一个名叫"map_0_data"的数据表来存放地图数据
 $mysql_public_sheet_name='map_0_data';
+//图层数据名称，如果没有我们会创建下面名字的数据表来存放地图数据
+$mysql_public_layer_name='map_0_layer';
 //root账号，您可以在确保地图数据库正常且完整运行一次AmapService.php后改为空字符串
 $mysql_root_password="password";
 /**
