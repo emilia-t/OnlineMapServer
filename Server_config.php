@@ -6,8 +6,8 @@ const __SERVER_IP_PORT__='0.0.0.0:9998';
 /**
  * 数据库账号配置：
  **/
-$mysql_public_server_address="localhost";
-$mysql_public_server_hostname="localhost";
+$mysql_public_server_address="localhost";//docker版请输入mysql容器名一般为mysql
+$mysql_public_server_hostname="localhost";//docker版请输入%
 //公用账号，如果没有账号，请手动创建一个公用账号，然后将账号和密码分别填入下方
 $mysql_public_user="name";
 $mysql_public_password="password";

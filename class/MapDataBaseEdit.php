@@ -15,7 +15,7 @@ class MapDataBaseEdit
         $this->startSetting();
     }
     function testDataBaseLink(){
-        global $mysql_root_password,$mysql_public_server_address,$mysql_public_user,$mysql_public_password,$mysql_public_db_name;
+        global $mysql_public_server_hostname,$mysql_root_password,$mysql_public_server_address,$mysql_public_user,$mysql_public_password,$mysql_public_db_name;
         //SQL 创建数据库
         define('CreateSqlA',<<<ETX
 FLUSH PRIVILEGES;
@@ -73,7 +73,7 @@ SET FOREIGN_KEY_CHECKS=1; FLUSH PRIVILEGES; GRANT
 SELECT,
 INSERT,
 DELETE,
-UPDATE ON $mysql_public_db_name.*TO '$mysql_public_user' @'$mysql_public_server_address'; FLUSH PRIVILEGES;
+UPDATE ON $mysql_public_db_name.*TO '$mysql_public_user'@'$mysql_public_server_hostname'; FLUSH PRIVILEGES;
 ETX
         );
         //检测数据库是否创建
