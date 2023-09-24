@@ -15,36 +15,36 @@ ini_set('extension', 'pdo_mysql');
  **/
 use Workerman\Worker;
 use Workerman\Timer;
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+//use PHPMailer\PHPMailer\PHPMailer;
+//use PHPMailer\PHPMailer\Exception;
 use Workerman\Connection\AsyncTcpConnection;
 use Workerman\Protocols\Http\Response;
 require_once 'Workerman/Autoloader.php';
-require './PHPMailer/src/Exception.php';
-require './PHPMailer/src/PHPMailer.php';
-require './PHPMailer/src/SMTP.php';
+//require 'PHPMailer/src/Exception.php';
+//require 'PHPMailer/src/PHPMailer.php';
+//require 'PHPMailer/src/SMTP.php';
 //服务器配置
-require './config/Server_config.php';
+require 'config/Server_config.php';
 //获取公钥与私钥的API
-require './api/Public_getPublickey.php';
+require 'api/Public_getPublickey.php';
 //解密和加密功能
-require './api/Other_RsaTranslate.php';
+require 'api/Other_RsaTranslate.php';
 //登录验证功能
-require './api/Public_LoginServer.php';
+require 'api/Public_LoginServer.php';
 //查询用户数据
-require './api/Public_GetUserData.php';
+require 'api/Public_GetUserData.php';
 //查询地图数据
-require './api/Public_GetMapData.php';
+require 'api/Public_GetMapData.php';
 //创建数据库
-require './api/Other_createMysqlDataBase.php';
+require 'api/Other_createMysqlDataBase.php';
 //通用数据检测工具
-require './class/QualityInspectionRoom.php';
+require 'class/QualityInspectionRoom.php';
 //json工具
-require './class/JsonDisposalTool.php';
+require 'class/JsonDisposalTool.php';
 //地图数据库编辑工具
-require './class/MapDataBaseEdit.php';
+require 'class/MapDataBaseEdit.php';
 //文件处理类
-require './class/FileOperation.php';
+require 'class/FileOperation.php';
 /**
 </external-program>
  **/
@@ -88,7 +88,7 @@ $theConfig['logFile']=fopen('./log/'.$theConfig['time'].'.txt','a+');
 //初始化设置
 function startSetting(){
     //检测数据库
-    testDataBaseLink();
+    //testDataBaseLink();
 }
 startSetting();
 //与客户端连接
