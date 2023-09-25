@@ -1,0 +1,20 @@
+version: '3'
+services:
+  mysql:
+    image: mysql:5.7.31
+    environment:
+      - MYSQL_ROOT_PASSWORD=mopumopu%9987&
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+  php:
+    image: php7:v7.3.31-oms
+    ports:
+      - 4433:4433
+    depends_on:
+      - mysql
+    volumes:
+      - D:/OnlineMapServer:/app
+    command: ["php", "/app/AmapService.php","start"]
+    environment:
+      - TZ=Asia/Shanghai

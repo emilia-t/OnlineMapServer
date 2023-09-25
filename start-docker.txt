@@ -1,0 +1,22 @@
+0.更改基本配置
+打开config/server_config.php
+必要修改：
+1：$mysql_public_server_address值改为'mysql'
+2：$mysql_public_server_hostname值改为'%'
+3：$mysql_public_password值改为'mopumopu&8384%'（详见init.sql）
+4：$mysql_root_password值改为'mopumopu%9987&'（详见docker-compose.yml）
+可选修改
+5：如果需要启用SSL则__SERVER_SSL_STA__ 值改为true，同时需要修改SSL证书文件地址
+6：如果需要修改服务器公钥和密钥则自行在网上生成公钥密钥对然后修改RSA_public和RSA_private
+7：服务器基础信息中的__SERVER_CONFIG__KEY__最好改为其他值例如k8
+8：__SERVER_CONFIG__URL__根据服务器ip地址和服务端口号自行修改
+其他配置修改详见server_config.php的末尾注释
+
+1.创建自定义php7镜像
+docker build -t php7:v7.3.31-oms .
+
+2.构建docker-compose
+docker-compose up
+
+3.重启两次
+docker-compose restart
