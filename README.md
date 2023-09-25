@@ -2,7 +2,7 @@
 
 This is a backend PHP service used to support online map editors
 
-This project is based on Workman(4.0.19) and PHP(7.3.31) and PHPMailer(6.5.0)
+This project is based on Workerman(4.0.19) and PHP(7.3.31) and PHPMailer(6.5.0)
 
 Start setting
 ------
