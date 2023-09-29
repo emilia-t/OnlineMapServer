@@ -288,6 +288,37 @@ ETX
             return false;
         }
     }
+    /**更新图层数据
+     * @param array $newData
+     * @return boolean
+     */
+    function updateLayerData($newData){
+        try{
+            $db=$this->linkPdo;
+            //获取id属性
+            $id=$newData['id'];
+            //移除id属性
+            unset($newData['id']);
+            $keys=array_keys($newData);
+            $cols=implode('=?, ',$keys).'=?';//在最后一个键名后面加上"=?"
+            $sql="UPDATE {$this->mapDateLayerName} SET {$cols} WHERE id=?";
+            //准备预处理语句
+            $stmt=$db->prepare($sql);
+            //执行预处理语句，并绑定参数
+            $params=array_values($newData);
+            $params[]=$id;
+            $stmt->execute($params);
+            //输出成功或失败的信息
+            if ($stmt->rowCount()>0){
+                return true;
+            } else {
+                return false;
+            }
+        }
+        catch (Exception $E){
+            return false;
+        }
+    }
     /**根据ID获取一个地图要素的数据
      * @param int $elementId
      * @return false

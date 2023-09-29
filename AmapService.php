@@ -73,7 +73,7 @@ $theConfig=[
     'globalId'=>0,
     'time'=>date('m-j'),
     'logFile'=>null,
-    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence','send_presence','get_activeData','send_activeData','send_error','send_correct','get_mapLayer','send_mapLayer']
+    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence','send_presence','get_activeData','send_activeData','send_error','send_correct','get_mapLayer','send_mapLayer','updateLayerData']
 ];
 $dir = 'log';
 if (!file_exists($dir)) {mkdir($dir, 0777, true);echo "文件夹 $dir 创建成功;";}
@@ -879,6 +879,39 @@ function handle_message($connection, $data){//收到客户端消息
                                         }catch (Exception $E){
                                             print_r('未知错误：restoreElement收到不明信息:');
                                             print_r($jsonData);
+                                        }
+                                        break;
+                                    }
+                                    //更新图层数据
+                                    case 'updateLayerData':{
+                                        $basicStructure=[];
+                                        if($newQIR->arrayPropertiesCheck('id',$jsonData['data'])){
+                                            $basicStructure['id']=$jsonData['data']['id'];
+                                        }else{
+                                            break;
+                                        }
+                                        if($newQIR->arrayPropertiesCheck('structure',$jsonData['data'])){
+                                            $basicStructure['structure']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['structure']));
+                                        }else{
+                                            break;
+                                        }
+                                        if($newQIR->arrayPropertiesCheck('members',$jsonData['data'])){
+                                            $basicStructure['members']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['members']));
+                                        }
+                                        $updateStatus=$newMDBE->updateLayerData($basicStructure);
+                                        $broadcastEmail=$connection->email;
+                                        $Time=creatDate();
+                                        $sdJson=['type'=>'broadcast','class'=>'updateLayerData','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>$basicStructure];
+                                        $sendJson=json_encode($sdJson);
+                                        if($updateStatus===true){
+                                            foreach ($socket_worker->connections as $con) {
+                                                //避免发送给匿名用户
+                                                if(property_exists($con,'email')){
+                                                    if($con->email != ''){
+                                                        $con->send($sendJson);
+                                                    }
+                                                }
+                                            }
                                         }
                                         break;
                                     }
