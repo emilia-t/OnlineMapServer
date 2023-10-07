@@ -9,6 +9,8 @@ class MapDataBaseEdit
     private $mapDateLayerName;
     private $linkMysqli;
     private $linkPdo;
+    private $isLinkPdo;
+    private $isLinkMysqli;
     public function __construct($dateSheetName='map_0_data',$dateLayerName='map_0_layer'){
         $this->mapDateSheetName=$dateSheetName;
         $this->mapDateLayerName=$dateLayerName;
@@ -66,7 +68,7 @@ DROP TABLE IF EXISTS `map_0_layer`;
 CREATE TABLE `map_0_layer` (`id` BIGINT (20) NOT NULL AUTO_INCREMENT,`type` VARCHAR (255) CHARACTER
 SET utf8 COLLATE utf8_general_ci NOT NULL,`members` MEDIUMTEXT CHARACTER
 SET utf8 COLLATE utf8_general_ci NOT NULL,`structure` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_general_ci NOT NULL,PRIMARY KEY (`id`) USING BTREE) ENGINE=INNODB AUTO_INCREMENT=29 CHARACTER
+SET utf8 COLLATE utf8_general_ci NOT NULL,`phase` int(1) NOT NULL DEFAULT 1,PRIMARY KEY (`id`) USING BTREE) ENGINE=INNODB AUTO_INCREMENT=29 CHARACTER
 SET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=Dynamic;
 SET FOREIGN_KEY_CHECKS=1;
 SET FOREIGN_KEY_CHECKS=1; FLUSH PRIVILEGES; GRANT
@@ -117,15 +119,33 @@ ETX
     function startSetting(){
         $this->testDataBaseLink();
         $this->linkDatabase();
+        $this->testLayerOrder();
+    }
+    /**检测图层数据是否存在order
+     * @return void
+     */
+    function testLayerOrder(){
+        if($this->isLinkPdo===true){
+            $databaseLink=$this->linkPdo;
+            $sql="SELECT id,type,members FROM $this->mapDateLayerName";
+            $execute=$databaseLink->prepare($sql);
+            $execute->execute();
+            $rowCount=$execute->rowCount();
+            $results=$execute->fetchAll(PDO::FETCH_ASSOC);
+            if($rowCount===0){
+                $addOrderSql="INSERT INTO $this->mapDateLayerName SET id=0,type='order',members='[]',structure=''";
+                $execute=$databaseLink->prepare($addOrderSql);
+                $execute->execute();
+            }
+        }
     }
     /**获取图层数据
-     * @param $lineObj array
      * @return array|boolean
      */
     function getLayerData(){
         try {
             $dbh = $this->linkPdo;
-            $sql = "SELECT * FROM $this->mapDateLayerName";
+            $sql = "SELECT * FROM $this->mapDateLayerName WHERE phase=1";
             $stmt = $dbh->prepare($sql);// 创建语句对象
             $stmt->execute();// 执行查询
             $rowCount=$stmt->rowCount();
@@ -139,13 +159,26 @@ ETX
             return false;
         }
     }
+    /**连接数据库
+     * @return void
+     */
     function linkDatabase(){
         global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
         $this->linkMysqli=mysqli_connect($mysql_public_server_address, $mysql_public_user, $mysql_public_password);
+        if($this->linkMysqli){
+            $this->isLinkMysqli=true;
+        }else{
+            $this->isLinkMysqli=false;
+        }
         mysqli_select_db($this->linkMysqli, $mysql_public_db_name);
         $dsn='mysql:host='.$mysql_public_server_address.';dbname='.$mysql_public_db_name;
         $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION];
         $this->linkPdo=new PDO($dsn,$mysql_public_user,$mysql_public_password,$options);
+        if($this->linkPdo->query("SELECT 1")){
+            $this->isLinkPdo=true;
+        }else{
+            $this->isLinkPdo=false;
+        }
     }
     /**上传线数据，请注意不要使用二维数组，二维值请转为json->base64
      * @param $lineObj array
@@ -204,6 +237,26 @@ ETX
             $link = $this->linkMysqli;
             //编辑查询语句
             $sql = "SELECT max(id) FROM {$this->mapDateSheetName}";
+            $sqlQu = mysqli_query($link, $sql);
+            $ref=mysqli_fetch_array($sqlQu,MYSQLI_NUM);
+            if ($sqlQu) {
+                return $ref[0];
+            } else {
+                return false;
+            }
+        }catch (Exception $E){
+            return false;
+        }
+    }
+    /**查询最新的图层ID号
+     * @param
+     * @return int|false
+     */
+    function selectNewLayerId(){
+        try {
+            $link = $this->linkMysqli;
+            //编辑查询语句
+            $sql = "SELECT max(id) FROM {$this->mapDateLayerName}";
             $sqlQu = mysqli_query($link, $sql);
             $ref=mysqli_fetch_array($sqlQu,MYSQLI_NUM);
             if ($sqlQu) {
@@ -316,6 +369,167 @@ ETX
             }
         }
         catch (Exception $E){
+            return false;
+        }
+    }
+
+    /**获取排序图层的数据
+     * @return array | boolean
+     */
+    function getOrderLayerData(){
+        try {
+            $databaseLink=$this->linkPdo;
+            $getSql="SELECT members FROM {$this->mapDateLayerName} WHERE type='order'";
+            $execute=$databaseLink->prepare($getSql);//创建语句对象
+            $execute->execute();//执行查询
+            $rowCount=$execute->rowCount();
+            if($rowCount>0){
+                return $execute->fetch(PDO::FETCH_ASSOC);//获取结果
+            }else{
+                return [];
+            }
+        } catch (PDOException $e) {
+            echo '数据库查询错误: ' . $e->getMessage();
+            return false;
+        }
+    }
+    /**更新排序图层的数据
+     * 更新成功后会返回新排序图层的members的JSON
+     * @param $layerId | int
+     * @param $means | string
+     * @return boolean
+     */
+    function updateOrderLayerData($layerId,$means){
+        try{
+            if(!is_numeric($layerId) || !is_string($means)){
+                return false;
+            }
+            $databaseLink=$this->linkPdo;
+            $membersSql="SELECT members FROM $this->mapDateLayerName WHERE type='order'";
+            $execute=$databaseLink->prepare($membersSql);
+            $execute->execute();
+            $members=null;
+            if($execute->rowCount()>0){
+                $members=$execute->fetch(PDO::FETCH_ASSOC)['members'];
+                $members=json_decode($members,true);
+                $error=json_last_error();
+                if(!empty($error)) {
+                    return false;
+                }else{
+                    if(is_array($members)){
+                        switch ($means){
+                            case 'push':{
+                                array_push($members,$layerId);
+                                $newMembers=json_encode($members,true);
+                                $updateMembersSql="UPDATE {$this->mapDateLayerName} SET members=? WHERE type='order'";
+                                $execute=$databaseLink->prepare($updateMembersSql);
+                                $execute->execute([$newMembers]);
+                                $affectedCount=$execute->rowCount();
+                                if($affectedCount>0) {
+                                    return $newMembers;
+                                }else{
+                                    return false;
+                                }
+                                break;
+                            }
+                            case 'remove':{
+                                $indexId=array_search($layerId,$members,true);
+                                if($indexId!==false){
+                                    array_splice($members,$indexId,1);
+                                    $newMembers=json_encode($members,true);
+                                    $updateMembersSql="UPDATE {$this->mapDateLayerName} SET members=? WHERE type='order'";
+                                    $execute=$databaseLink->prepare($updateMembersSql);
+                                    $execute->execute([$newMembers]);
+                                    $affectedCount=$execute->rowCount();
+                                    if($affectedCount>0) {
+                                        return $newMembers;
+                                    }else{
+                                        return false;
+                                    }
+                                }else{
+                                    return false;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }else{
+                return false;
+            }
+        }
+        catch (Exception $E){
+            return false;
+        }
+    }
+    /**调整图层顺序
+     * @param $newMembers | array
+     * @return boolean array
+     */
+    function adjustOrderLayerData($newMembers){
+        try{
+            $databaseLink=$this->linkPdo;
+            $newMembers=json_encode($newMembers,true);
+            $updateMembersSql="UPDATE {$this->mapDateLayerName} SET members=? WHERE type='order'";
+            $execute=$databaseLink->prepare($updateMembersSql);
+            $execute->execute([$newMembers]);
+            $affectedCount=$execute->rowCount();
+            if($affectedCount>0) {
+                return $newMembers;
+            }else{
+                return false;
+            }
+        }catch (Exception $E){
+            return false;
+        }
+    }
+    /**创建图层数据
+     * @param array $newData
+     * @return boolean
+     */
+    function createLayerData($newData){
+        try{
+            $db=$this->linkPdo;
+            $sql="INSERT INTO {$this->mapDateLayerName} (type,members,structure) VALUES (?,?,?)";
+            //准备预处理语句
+            $stmt=$db->prepare($sql);
+            //执行预处理语句，并绑定参数
+            $params=array_values($newData);
+            $stmt->execute($params);
+            //输出成功或失败的信息
+            if ($stmt->rowCount()>0){
+                return true;
+            } else {
+                return false;
+            }
+        }
+        catch (Exception $E){
+            print_r("createLayerData异常\n");
+            return false;
+        }
+    }
+    /**更新图层phase状态
+     * @param $id | int
+     * @param $phase | int
+     * @return boolean
+     */
+    function updateLayerPhase($id,$phase){
+        try{
+            if(!is_numeric($id) || !is_numeric($phase)){
+                return false;
+            }
+            $databaseLink=$this->linkPdo;
+            $updateLayerPhaseSql="UPDATE {$this->mapDateLayerName} SET phase=? WHERE type!='order' AND id=?";
+            $execute=$databaseLink->prepare($updateLayerPhaseSql);
+            $execute->execute([$phase,$id]);
+            if ($execute->rowCount()>0){
+                return true;
+            } else {
+                return false;
+            }
+        }
+        catch (Exception $E){
+            print_r("updateLayerPhase异常\n");
             return false;
         }
     }

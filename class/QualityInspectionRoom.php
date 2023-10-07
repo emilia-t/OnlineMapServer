@@ -193,4 +193,29 @@ class QualityInspectionRoom
             }
         }
     }
+
+    /**检测图层的结构
+     * @param $structure
+     * @return void
+     */
+    function layerStructureCheck($structure){
+        //1结构中不允许重复出现同一个index, 每个数组第一位必须为字符串，第二位必须为对象(不得为空数组)，其他位必须为数组或者数字
+        //print_r($structure);//
+    }
+
+    /**检测图层的成员
+     * @param $structure
+     * @return void
+     */
+    function layerMembersCheck($structure){
+        //1成员中不允许存在重复成员，所有成员均需要通过 格式检测 数字_数字
+    }
+
+    /**检测图层的结构以及成员
+     * @param $structure
+     * @return void
+     */
+    function layerStructureMembersCheck($structure){
+        //通过layerStructureCheck和layerMembersCheck的质检的前提下，还要检测结构中是否存在index大于成员数量的
+    }
 }

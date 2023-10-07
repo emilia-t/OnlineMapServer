@@ -73,7 +73,7 @@ $theConfig=[
     'globalId'=>0,
     'time'=>date('m-j'),
     'logFile'=>null,
-    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence','send_presence','get_activeData','send_activeData','send_error','send_correct','get_mapLayer','send_mapLayer','updateLayerData']
+    'typeList'=>['get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey','loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence','send_presence','get_activeData','send_activeData','send_error','send_correct','get_mapLayer','send_mapLayer']
 ];
 $dir = 'log';
 if (!file_exists($dir)) {mkdir($dir, 0777, true);echo "文件夹 $dir 创建成功;";}
@@ -885,6 +885,9 @@ function handle_message($connection, $data){//收到客户端消息
                                     //更新图层数据
                                     case 'updateLayerData':{
                                         $basicStructure=[];
+                                        $hasStructure=false;
+                                        $hasMembers=false;
+                                        $hasLevel=false;
                                         if($newQIR->arrayPropertiesCheck('id',$jsonData['data'])){
                                             $basicStructure['id']=$jsonData['data']['id'];
                                         }else{
@@ -892,11 +895,19 @@ function handle_message($connection, $data){//收到客户端消息
                                         }
                                         if($newQIR->arrayPropertiesCheck('structure',$jsonData['data'])){
                                             $basicStructure['structure']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['structure']));
-                                        }else{
-                                            break;
+                                            $newQIR->layerStructureCheck($jsonData['data']['structure']);
+                                            $hasStructure=true;
                                         }
                                         if($newQIR->arrayPropertiesCheck('members',$jsonData['data'])){
                                             $basicStructure['members']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['members']));
+                                            $hasMembers=true;
+                                        }
+                                        if($newQIR->arrayPropertiesCheck('level',$jsonData['data'])){
+                                            $basicStructure['level']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['level']));
+                                            $hasLevel=true;
+                                        }
+                                        if($hasStructure===false && $hasMembers===false && $hasLevel===false){
+                                            break;
                                         }
                                         $updateStatus=$newMDBE->updateLayerData($basicStructure);
                                         $broadcastEmail=$connection->email;
@@ -912,6 +923,102 @@ function handle_message($connection, $data){//收到客户端消息
                                                     }
                                                 }
                                             }
+                                        }
+                                        break;
+                                    }
+                                    //更新图层排序
+                                    case 'updateLayerOrder':{
+                                        $oldMembers=$newMDBE->getOrderLayerData();
+                                        $oldMembers=json_decode($oldMembers['members']);
+                                        if(!$newQIR->arrayPropertiesCheck('passive',$jsonData['data'])){break;}
+                                        if(!$newQIR->arrayPropertiesCheck('active',$jsonData['data'])){break;}
+                                        if(!$newQIR->arrayPropertiesCheck('type',$jsonData['data'])){break;}
+                                        $passive=(int)$jsonData['data']['passive'];
+                                        $active=(int)$jsonData['data']['active'];
+                                        $nowType=$jsonData['data']['type'];
+                                        if(!in_array($passive,$oldMembers)){break;}
+                                        if(!in_array($active,$oldMembers)){break;}
+                                        $newMember=adjustLayerOrder($oldMembers,$passive,$active,$nowType);
+                                        if($newMember!=$oldMembers){
+                                            $newOrderMemberStr=$newMDBE->adjustOrderLayerData($newMember);
+                                            if($newOrderMemberStr!==false){
+                                                $broadcastEmail=$connection->email;
+                                                $Time=creatDate();
+                                                $sdJson=['type'=>'broadcast','class'=>'updateLayerOrder','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>['members'=>$newOrderMemberStr]];
+                                                $sendJson=json_encode($sdJson);
+                                                foreach ($socket_worker->connections as $con) {
+                                                    //避免发送给匿名用户
+                                                    if(property_exists($con,'email')){
+                                                        if($con->email != ''){
+                                                            $con->send($sendJson);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+                                    //新建分组图层
+                                    case 'createGroupLayer':{
+                                        $basicStructure=['type'=>'group'];
+                                        if($newQIR->arrayPropertiesCheck('members',$jsonData['data'])){
+                                            $basicStructure['members']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['members']));
+                                        }else{
+                                            break;
+                                        }
+                                        if($newQIR->arrayPropertiesCheck('structure',$jsonData['data'])){
+                                            $basicStructure['structure']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['structure']));
+                                            $newQIR->layerStructureCheck($jsonData['data']['structure']);
+                                        }else{
+                                            break;
+                                        }
+                                        $updateStatus=$newMDBE->createLayerData($basicStructure);
+                                        if($updateStatus===true){
+                                            $broadcastEmail=$connection->email;
+                                            $Time=creatDate();
+                                            $newLayerId=$newMDBE->selectNewLayerId()+0;
+                                            $newOrderMembers=$newMDBE->updateOrderLayerData($newLayerId,'push');
+                                            $sendOrderJson=['type'=>'broadcast','class'=>'updateLayerOrder','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>['members'=>$newOrderMembers]];
+                                            $sendOrderJson=json_encode($sendOrderJson);
+                                            $basicStructure['id']=$newLayerId;
+                                            $sdJson=['type'=>'broadcast','class'=>'createGroupLayer','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>$basicStructure];
+                                            $sendJson=json_encode($sdJson);
+                                            foreach ($socket_worker->connections as $con) {
+                                                //避免发送给匿名用户
+                                                if(property_exists($con,'email')){
+                                                    if($con->email != ''){
+                                                        $con->send($sendJson);
+                                                        $con->send($sendOrderJson);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+                                    //删除图层
+                                    case 'deleteLayer':{
+                                        if($newQIR->arrayPropertiesCheck('data',$jsonData)){
+                                        if($newQIR->arrayPropertiesCheck('id',$jsonData['data'])){
+                                            $deleteId=$jsonData['data']['id']+0;
+                                            $updateStatus=$newMDBE->updateLayerPhase($deleteId,2);
+                                            if($updateStatus===true){
+                                                $broadcastEmail=$connection->email;
+                                                $Time=creatDate();
+                                                $newOrderMembers=$newMDBE->updateOrderLayerData($deleteId,'remove');
+                                                $sendOrderJson=['type'=>'broadcast','class'=>'updateLayerOrder','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>['members'=>$newOrderMembers]];
+                                                $sendOrderJson=json_encode($sendOrderJson);
+                                                $sendDeleteJson=['type'=>'broadcast','class'=>'deleteLayer','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>['id'=>$jsonData['data']['id']]];
+                                                $sendDeleteJson=json_encode($sendDeleteJson);
+                                                foreach ($socket_worker->connections as $con) {
+                                                    if(property_exists($con,'email')){
+                                                        if($con->email != ''){
+                                                            $con->send($sendDeleteJson);
+                                                            $con->send($sendOrderJson);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                         }
                                         break;
                                     }
@@ -1208,6 +1315,24 @@ function creatVerificationCode(){
         $token.=$str[$ran];
     }
     return $token;
+}
+//调整图层排序
+function adjustLayerOrder($arr,$passive,$active,$type){
+    $newArr=[];
+    foreach($arr as $key=>$value){
+        if($value==$passive){
+            if($type=='up'){
+                $newArr[]=$active;
+            }
+            $newArr[]=$passive;
+            if($type=='down'){
+                $newArr[]=$active;
+            }
+        }else if($value!=$active){
+            $newArr[]=$value;
+        }
+    }
+    return $newArr;
 }
 //获取当前在线人数
 function getOnlineNumber(){
