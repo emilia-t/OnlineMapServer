@@ -1523,6 +1523,8 @@ $socket_worker->onClose='handle_close';
 $socket_worker->onWorkerStart=function ($socket_worker){
     Timer::add(10,
         function () use($socket_worker){
+            global $newMDBE;
+            $newMDBE->pdoHeartbeat();
             $time_now = time();
             foreach($socket_worker->connections as $connection) {
                 // 有可能该connection还没收到过消息，则lastMessageTime设置为当前时间
