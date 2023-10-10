@@ -27,13 +27,18 @@ USE $mysql_public_db_name;
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS `account_data`;
-CREATE TABLE `account_data` (`user_email` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT '用户电子邮箱',`user_name` VARCHAR (255) CHARACTER NOT NULL DEFAULT 'unknown'
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT '用户名',`pass_word` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT '密码',`map_layer` INT (11) NULL DEFAULT 0 COMMENT '默认层级',`default_a1` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT '{x:0,y:0}' COMMENT '默认的A1坐标',`save_point` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '用户保存的坐标，收藏点',`user_qq` BIGINT (12) NULL DEFAULT 1077365277 COMMENT '用户QQ号',`head_color` VARCHAR (6) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT 'ffffff' COMMENT '头像颜色16进制的',PRIMARY KEY (`user_email`) USING BTREE) ENGINE=INNODB CHARACTER
+CREATE TABLE `account_data` (
+`user_email` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NOT NULL DEFAULT 'unknown' COMMENT '用户电子邮箱',
+`user_name` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NOT NULL DEFAULT 'unknown' COMMENT '用户名',
+`pass_word` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NOT NULL DEFAULT 'unknown' COMMENT '密码',
+`map_layer` INT (11) NULL DEFAULT 0 COMMENT '默认层级',
+`default_a1` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT '{x:0,y:0}' COMMENT '默认的A1坐标',
+`save_point` MEDIUMTEXT CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '用户保存的坐标，收藏点',
+`user_qq` BIGINT (12) NULL DEFAULT 1077365277 COMMENT '用户QQ号',
+`head_color` VARCHAR (6) CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT 'ffffff' COMMENT '头像颜色16进制的',
+PRIMARY KEY (`user_email`) USING BTREE
+) 
+ENGINE=INNODB CHARACTER
 SET=utf8 COLLATE=utf8_croatian_ci ROW_FORMAT=Dynamic;
 DROP TABLE IF EXISTS `map_0_data`;
 CREATE TABLE `map_0_data` (`id` BIGINT (20) NOT NULL AUTO_INCREMENT COMMENT 'id',`type` VARCHAR (12) CHARACTER
