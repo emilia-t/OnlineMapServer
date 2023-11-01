@@ -902,10 +902,6 @@ function handle_message($connection, $data){//收到客户端消息
                                             $basicStructure['members']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['members']));
                                             $hasMembers=true;
                                         }
-                                        if($newQIR->arrayPropertiesCheck('level',$jsonData['data'])){
-                                            $basicStructure['level']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['level']));
-                                            $hasLevel=true;
-                                        }
                                         if($hasStructure===false && $hasMembers===false && $hasLevel===false){
                                             break;
                                         }
