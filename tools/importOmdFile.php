@@ -3,7 +3,7 @@
  * 所需变量
  */
 $Mysqli=null;
-$RootPassword='15012266896%Wang%';
+$RootPassword='passwordEnter';
 $DatabaseName='map';
 $MapSerial='0';
 /**
