@@ -3,7 +3,8 @@
  * 所需变量
  */
 $Mysqli=null;
-$RootPassword='passwordEnter';
+echo "请输入密码：";
+$RootPassword = trim(fgets(STDIN));
 $DatabaseName='map';
 $MapSerial='0';
 /**
