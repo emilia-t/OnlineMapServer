@@ -232,8 +232,6 @@ function handle_message($connection, $data){//收到客户端消息
                                             $dateTime=creatDate();
                                             $sdJson=['type'=>'broadcast','class'=>'area','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
                                             $sendJson=json_encode($sdJson);
-                                            //返回成功指令
-                                            sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);
                                             foreach ($socket_worker->connections as $con) {
                                                 //避免发送给匿名用户
                                                 if(property_exists($con,'email')){
@@ -242,6 +240,8 @@ function handle_message($connection, $data){//收到客户端消息
                                                     }
                                                 }
                                             }
+                                            //返回成功指令
+                                            sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
                                             createLog('userAddArea',$logData);
                                         }else{
@@ -353,8 +353,6 @@ function handle_message($connection, $data){//收到客户端消息
                                             $sdJson=['type'=>'broadcast','class'=>'line','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
                                             //返回数据
                                             $sendJson=json_encode($sdJson);
-                                            //返回成功指令
-                                            sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);
                                             foreach ($socket_worker->connections as $con) {
                                                 //避免发送给匿名用户
                                                 if(property_exists($con,'email')){
@@ -363,6 +361,8 @@ function handle_message($connection, $data){//收到客户端消息
                                                     }
                                                 }
                                             }
+                                            //返回成功指令
+                                            sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
                                             createLog('userAddLine',$logData);
                                         }else{
@@ -457,8 +457,6 @@ function handle_message($connection, $data){//收到客户端消息
                                             $sdJson=['type'=>'broadcast','class'=>'point','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
                                             //返回数据
                                             $sendJson=json_encode($sdJson);
-                                            //返回成功指令
-                                            sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);
                                             foreach ($socket_worker->connections as $con) {
                                                 //避免发送给匿名用户
                                                 if(property_exists($con,'email')){
@@ -467,6 +465,8 @@ function handle_message($connection, $data){//收到客户端消息
                                                     }
                                                 }
                                             }
+                                            //返回成功指令
+                                            sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
                                             createLog('userAddPoint',$logData);
                                         }else{
@@ -592,9 +592,7 @@ function handle_message($connection, $data){//收到客户端消息
                                         if(count($details)!=0){
                                             $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack($details));
                                         }
-                                        if($custom!=null){
-                                            $basicStructure['custom']=$newJDT->btoa($newJDT->jsonPack($custom));
-                                        }
+                                        $basicStructure['custom']=$newJDT->btoa($newJDT->jsonPack($custom));
                                         //上传数据库
                                         $isSuccess=$newMDBE->updateElementData($basicStructure);
                                         if($isSuccess){//更新成功
@@ -860,7 +858,9 @@ function handle_message($connection, $data){//收到客户端消息
                                             $broadcastEmail=$connection->email;
                                             $Time=creatDate();
                                             $sdJson=['type'=>'broadcast','class'=>$elementData['type'],'conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>$elementData];
+                                            $correctJson=['type'=>'send_correct','class'=>'upload','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>['rid'=>$ID,'vid'=>'restore']];
                                             $sendJson=json_encode($sdJson);
+                                            $sendCorrectJson=json_encode($correctJson);
                                             //更改元素
                                             $updateStatus=$newMDBE->updateElementPhase($ID,1);
                                             if($updateStatus===true){
@@ -872,6 +872,7 @@ function handle_message($connection, $data){//收到客户端消息
                                                         }
                                                     }
                                                 }
+                                                $connection->send($sendCorrectJson);
                                             }
                                             //写入日志
                                             $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'id'=>$ID];
@@ -1013,8 +1014,58 @@ function handle_message($connection, $data){//收到客户端消息
                                                         }
                                                     }
                                                 }
+                                                $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$connection->email,'id'=>$jsonData['data']['id']];
+                                                createLog('deleteLayer',$logData);
                                             }
                                         }
+                                        }
+                                        break;
+                                    }
+                                    //删除图层
+                                    case 'deleteLayerAndMembers':{
+                                        if($newQIR->arrayPropertiesCheck('data',$jsonData)){
+                                            if($newQIR->arrayPropertiesCheck('id',$jsonData['data'])){
+                                                $deleteId=$jsonData['data']['id']+0;
+                                                $updateLayerStatus=$newMDBE->updateLayerPhase($deleteId,2);
+                                                if($updateLayerStatus===true){
+                                                    $updateMembers=$newMDBE->updateLayerMembersPhase($deleteId,2);
+                                                    if($updateMembers!==false){
+                                                        $broadcastEmail=$connection->email;
+                                                        $Time=creatDate();
+                                                        $newOrderMembers=$newMDBE->updateOrderLayerData($deleteId,'remove');
+                                                        $sendOrderJson=['type'=>'broadcast','class'=>'updateLayerOrder','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>['members'=>$newOrderMembers]];
+                                                        $sendOrderJson=json_encode($sendOrderJson);
+                                                        $sendDeleteJson=['type'=>'broadcast','class'=>'deleteLayerAndMembers','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>['id'=>$jsonData['data']['id'],'members'=>$updateMembers]];
+                                                        $sendDeleteJson=json_encode($sendDeleteJson);
+                                                        foreach ($socket_worker->connections as $con) {
+                                                            if(property_exists($con,'email')){
+                                                                if($con->email != ''){
+                                                                    $con->send($sendDeleteJson);
+                                                                    $con->send($sendOrderJson);
+                                                                }
+                                                            }
+                                                        }
+                                                        $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$connection->email,'id'=>$jsonData['data']['id']];
+                                                        createLog('deleteLayerAndMembers',$logData);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+                                    //强制刷新客户端
+                                    case 'forceUpdate':{
+                                        $Time=creatDate();
+                                        $broadcastEmail=$connection->email;
+                                        $sendObj=['type'=>'broadcast','class'=>'forceUpdate','conveyor'=>$broadcastEmail,'time'=>$Time];
+                                        $sendJson=json_encode($sendObj);
+                                        //权限判断
+                                        foreach ($socket_worker->connections as $con) {
+                                            if(property_exists($con,'email')){
+                                                if($con->email != ''){
+                                                    $con->send($sendJson);
+                                                }
+                                            }
                                         }
                                         break;
                                     }
@@ -1432,6 +1483,26 @@ ETX;
             $log=<<<ETX
 
 {$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};删除一个元素:{$logData['id']}
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'deleteLayer':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};删除一个图层:{$logData['id']}
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'deleteLayerAndMembers':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};删除一个图层及其成员:{$logData['id']}
 
 ETX;
             echo $log;

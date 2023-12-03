@@ -552,6 +552,35 @@ ETX
             return false;
         }
     }
+    /**更新图层成员的phase状态并且返回删除成功的成员数组，失败则返回false
+     * @param $id | int
+     * @param $phase | int
+     * @return boolean | array
+     */
+    function updateLayerMembersPhase($id,$phase){
+        try{
+            if(!is_numeric($id) || !is_numeric($phase)){
+                return false;
+            }
+            $databaseLink=$this->linkPdo;
+            $SqlGetMembers="SELECT members FROM {$this->mapDateLayerName} WHERE id=$id";
+            $MembersExecute=$databaseLink->query($SqlGetMembers);
+            $MembersResult=$MembersExecute->fetch();//['members'=>'']
+            $MembersObj=json_decode(base64_decode($MembersResult['members']));
+            $ref=[];//['145'=>1,'id'=>TypeNumber]
+            foreach($MembersObj as $key=>$value){
+                $status=$this->updateElementPhase($key,2);
+                if($status===true){
+                    $ref[$key]=$value;
+                }
+            }
+            return $ref;
+        }
+        catch (Exception $E){
+            print_r("updateLayerMembersPhase异常\n");
+            return false;
+        }
+    }
     /**根据ID获取一个地图要素的数据
      * @param int $elementId
      * @return false
