@@ -755,8 +755,7 @@ function handle_message($connection, $data){//收到客户端消息
                                                 }else{
                                                     $theData['activeElement']['E'.$ID]['select']=null;
                                                     if($theData['activeElement']['E'.$ID]['pick']===null){
-                                                        $index=array_search('E'.$ID,$theData['activeElement']);
-                                                        array_splice($theData['activeElement'],$index,1);
+                                                        unset($theData['activeElement']['E'.$ID]);
                                                     }
                                                 }
                                             }else{
@@ -816,15 +815,14 @@ function handle_message($connection, $data){//收到客户端消息
                                         $userName=$connection->userData['userName'];
                                         $email=$connection->email;
                                         $Lock=array_key_exists('E'.$ID,$theData['activeElement']);
-                                        if($Lock){//判断此要素是否有人已经右键选中了
+                                        if($Lock){//判断此要素是否有人已经选中了
                                             if($theData['activeElement']['E'.$ID]['pick']!==null){
                                                 if($theData['activeElement']['E'.$ID]['pick']['email']!==$email){
                                                     return false;
                                                 }else{
                                                     $theData['activeElement']['E'.$ID]['pick']=null;
                                                     if($theData['activeElement']['E'.$ID]['select']===null){
-                                                        $index=array_search('E'.$ID,$theData['activeElement']);
-                                                        array_splice($theData['activeElement'],$index,1);
+                                                        unset($theData['activeElement']['E'.$ID]);
                                                     }
                                                 }
                                             }else{
