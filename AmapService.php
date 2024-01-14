@@ -486,6 +486,13 @@ function handle_message($connection, $data){//收到客户端消息
                                             echo '所更新的id包含非数字字符';
                                             break;
                                         }
+                                        if(!$newQIR->arrayPropertiesCheck('type',$jsonData['data'])){break;}//2.7检查type是否存在
+                                        if($newQIR->elementTypeCheck($jsonData['data']['type'])){//2.7.检查type是否正确
+                                            $basicStructure['type']=$jsonData['data']['type'];
+                                        }else{
+                                            echo '所更新的id元素类型不符标准';
+                                            break;
+                                        }
                                         if(!$newQIR->arrayPropertiesCheck('changes',$jsonData['data'])){break;}//3.检查changes是否存在
                                         if(!$newQIR->getDataType($jsonData['data']['changes'])=='array'){break;}//4.检查changes是否为数组
                                         if($newQIR->arrayPropertiesCheck('color',$jsonData['data']['changes'])){//5.检查color是否存在，存在则检查
@@ -1149,7 +1156,7 @@ function handle_close($connection){
             if($value['pick']!==null){
                 if($value['pick']['email']===$userEmail){
                     $theData['activeElement'][$key]['pick']=null;
-                    $ID=substr($key,1);
+                    $ID=intval(substr($key,1));
                     $Time=creatDate();
                     $sendArr=['type'=>'broadcast','class'=>'pickEndElement','conveyor'=>$userEmail,'time'=>$Time,'data'=>$ID];
                     $sendJson=json_encode($sendArr);
@@ -1165,7 +1172,7 @@ function handle_close($connection){
             if($value['select']!==null){
                 if($value['select']['email']===$userEmail){
                     $theData['activeElement'][$key]['select']=null;
-                    $ID=substr($key,1);
+                    $ID=intval(substr($key,1));
                     $Time=creatDate();
                     $sendArr=['type'=>'broadcast','class'=>'selectEndElement','conveyor'=>$userEmail,'time'=>$Time,'data'=>$ID];
                     $sendJson=json_encode($sendArr);

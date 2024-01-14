@@ -37,6 +37,7 @@ class名：QualityInspectionRoom（质检间）-用于对用户上传的数据�
 class QualityInspectionRoom
 {
     public $feedback=false;
+    public $elementTypeList=array('point', 'line', 'area', 'curve');
     public function __construct($feedback=false){
         $this->feedback=$feedback;
     }
@@ -101,6 +102,13 @@ class QualityInspectionRoom
             }
         }
         return true;
+    }
+    /**元素类型检查
+     * @param $value string
+     * @return bool
+     */
+    function elementTypeCheck($value){
+        return in_array($value,$this->elementTypeList);
     }
     /**检查数据格式并输出格式名称
      * @param $value

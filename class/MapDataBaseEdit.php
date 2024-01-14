@@ -340,6 +340,8 @@ ETX
             $id=$newData['id'];
             //移除id属性
             unset($newData['id']);
+            //移除type属性
+            unset($newData['type']);
             $keys=array_keys($newData);
             $cols=implode('=?, ',$keys).'=?';//在最后一个键名后面加上"=?"
             $sql="UPDATE {$this->mapDateSheetName} SET {$cols} WHERE id=?";
