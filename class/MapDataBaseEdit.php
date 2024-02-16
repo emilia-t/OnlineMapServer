@@ -87,7 +87,7 @@ ETX
         $PbLink=mysqli_connect($mysql_public_server_address, $mysql_public_user, $mysql_public_password);
         //检测公开账号连接
         if(!$PbLink){//无法连接公用账号
-            print_r("公用账号连接数据库失败，请检查/config/Mysql_OZ4pTiFHZf.php下的配置\n");
+            print_r("公用账号连接数据库失败，请检查/config/Server_config.php下的配置\n");
         }else{//能连接->检测数据库是否存在
             print_r("公用账号连接数据库成功\n");
             print_r("检测数据库中：\n");
@@ -102,7 +102,7 @@ ETX
                 //2.新建root连接
                 $RootLink=mysqli_connect($mysql_public_server_address, 'root', $mysql_root_password);
                 if(!$RootLink){
-                    print_r("root账号连接失败，请检查/config/Mysql_OZ4pTiFHZf.php下的配置\n");
+                    print_r("root账号连接失败，请检查/config/Server_config.php下的配置\n");
                 }else{
                     //3.创建数据库-表单
                     $RootLink->multi_query(CreateSqlA);
