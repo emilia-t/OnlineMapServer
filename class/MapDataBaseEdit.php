@@ -34,7 +34,7 @@ CREATE TABLE `account_data` (
 `map_layer` INT (11) NULL DEFAULT 0 COMMENT '默认层级',
 `default_a1` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT '{x:0,y:0}' COMMENT '默认的A1坐标',
 `save_point` MEDIUMTEXT CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '用户保存的坐标，收藏点',
-`user_qq` BIGINT (12) NULL DEFAULT 1077365277 COMMENT '用户QQ号',
+`user_qq` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT '100006' COMMENT '用户QQ号',
 `head_color` VARCHAR (6) CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT 'ffffff' COMMENT '头像颜色16进制的',
 PRIMARY KEY (`user_email`) USING BTREE
 ) 

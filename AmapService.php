@@ -58,6 +58,7 @@ require 'class/QualityInspectionRoom.php';//通用数据检测工具
 require 'class/JsonDisposalTool.php';//json工具
 require 'class/MapDataBaseEdit.php';//地图数据库编辑工具
 require 'class/FileOperation.php';//文件处理类
+require 'class/instruct.php';//指令集合
 /**
 </external-program>
  **/
@@ -69,6 +70,7 @@ $newQIR=new QualityInspectionRoom(false);
 $newJDT=new JsonDisposalTool();
 $newMDBE=new MapDataBaseEdit($mysql_public_sheet_name,$mysql_public_layer_name);
 $newFO=new FileOperation();
+$instruct=new instruct(true,true);
 /**
 </class>
  **/
@@ -83,6 +85,12 @@ $theData=[
     'activeElement'=>[],
 ];
 $theConfig=[
+    'userDataStructure'=>[
+        'userEmail'=>null,
+        'userQq'=>null,
+        'userName'=>null,
+        'headColor'=>null,
+    ],
     'globalId'=>0,
     'time'=>date('m-j'),
     'logFile'=>null,
@@ -109,10 +117,12 @@ $theConfig['logFile']=fopen('./log/'.$theConfig['time'].'.txt','a+');
  * @return bool
  */
 function startSetting(){
-    //testDataBaseLink();//检测数据库
+    global $theConfig;
+    if(__ANONYMOUS_LOGIN__===true){//允许匿名登录指令
+        array_push($theConfig['typeList'],'anonymousLogin');
+    }
     return true;
 }
-//startSetting();
 /**与客户端连接
  * @param $connection
  * @return void
@@ -120,12 +130,6 @@ function startSetting(){
 function handle_connection($connection){
     global $theData;
     $ip=$connection->getRemoteIp();
-    //$ip=$connection->getRemoteIp().':'.$connection->getRemotePort();
-    //$dateTime=creatDate();
-    //$logData=['connectionId'=>$connection->id,'broadcastEmail'=>'系统消息','text'=>'欢迎，已知的bug:1.移动地图存在底图和元素偏移的问题'];
-    //$sendArr = ['type'=>'broadcast','class'=>'textMessage','conveyor'=>'系统消息','time'=>$dateTime,'data'=>$jsonData['data']];
-    //$sendJson = json_encode($sendArr);
-    //$connection->send($sendJson);//发送公告消息
     if(!isset($theData['ip_connect_times'][$ip])){//当客户端连接上之后需要携带至少1个参数表达意愿
         $theData['ip_connect_times'][$ip] = 0;
     }else{
@@ -147,7 +151,7 @@ function handle_connection($connection){
  * @return false
  */
 function handle_message($connection, $data){//收到客户端消息
-    global $theData,$theConfig,$socket_worker,$newQIR,$newJDT,$newMDBE,$newFO;
+    global $theData,$theConfig,$socket_worker,$newQIR,$newJDT,$newMDBE,$newFO,$instruct;
     $jsonData=$newJDT->checkJsonData($data);//1.校验并解析json格式
     if(gettype($jsonData)==='array'){//2.检测是否为数组类型
     if(array_key_exists('type',$jsonData)){//3.检测是否存在必要属性 'type'
@@ -623,8 +627,8 @@ function handle_message($connection, $data){//收到客户端消息
                                     }
                                     case 'selectIngElement':{//选中要素
                                         $ID=$jsonData['data'];
-                                        $userName=$connection->userData['userName'];
-                                        $headColor=$connection->userData['headColor'];
+                                        $userName=$connection->userData['user_name'];
+                                        $headColor=$connection->userData['head_color'];
                                         $email=$connection->email;
                                         $Lock=array_key_exists('E'.$ID,$theData['activeElement']);
                                         if($Lock){//判断此要素是否有人已经右键选中了
@@ -653,7 +657,7 @@ function handle_message($connection, $data){//收到客户端消息
                                     }
                                     case 'selectEndElement':{//取消选中要素
                                         $ID=$jsonData['data'];
-                                        $userName=$connection->userData['userName'];
+                                        $userName=$connection->userData['user_name'];
                                         $email=$connection->email;
                                         $Lock=array_key_exists('E'.$ID,$theData['activeElement']);
                                         if($Lock){//判断此要素是否有人已经右键选中了
@@ -686,8 +690,8 @@ function handle_message($connection, $data){//收到客户端消息
                                     }
                                     case 'pickIngElement':{//选中要素pick
                                         $ID=$jsonData['data'];
-                                        $userName=$connection->userData['userName'];
-                                        $headColor=$connection->userData['headColor'];
+                                        $userName=$connection->userData['user_name'];
+                                        $headColor=$connection->userData['head_color'];
                                         $email=$connection->email;
                                         $Lock=array_key_exists('E'.$ID,$theData['activeElement']);
                                         if($Lock){//判断此要素是否有人已经右键选中了
@@ -716,7 +720,7 @@ function handle_message($connection, $data){//收到客户端消息
                                     }
                                     case 'pickEndElement':{//取消选中要素
                                         $ID=$jsonData['data'];
-                                        $userName=$connection->userData['userName'];
+                                        $userName=$connection->userData['user_name'];
                                         $email=$connection->email;
                                         $Lock=array_key_exists('E'.$ID,$theData['activeElement']);
                                         if($Lock){//判断此要素是否有人已经选中了
@@ -983,6 +987,10 @@ function handle_message($connection, $data){//收到客户端消息
             }
             case 'get_serverConfig':{//获取服务器的配置
                         $sendArr=['type'=>'send_serverConfig','data'=>[
+                            /*
+                             *以下为服务器属性配置信息
+                             */
+                            'anonymous_login'=>__ANONYMOUS_LOGIN__,
                             'key'=>__SERVER_CONFIG__KEY__,
                             'url'=>__SERVER_CONFIG__URL__,
                             'name'=>__SERVER_CONFIG__NAME__,
@@ -1038,37 +1046,83 @@ function handle_message($connection, $data){//收到客户端消息
             case 'login':{//登录
                         $Email=$jsonData['data']['email'];
                         $Password=$jsonData['data']['password'];
+                        if(!$instruct->ckLogonAccount($Email,$Password)){
+                            break;
+                        }
                         $RealPws=RsaTranslate($Password,'decode');//1.解密
                         $logUserData=LoginServer($Email,$RealPws);//2.数据库进行查询
                         if($logUserData!==false){
                             $connection->email=$Email;//直接给该连接加入新属性
                             $connection->userData=$logUserData;
-                            $sendArr=['type'=>'loginStatus','data'=>true];
-                            $sendJson=json_encode($sendArr);
-                            $connection->send($sendJson);//返回数据
-                            $logData=['connectionId'=>$connection->id,'userEmail'=>$Email];//登录用户数据
+                            $connection->send($instruct->loginStatus(true));//返回登录成功指令
                             foreach ($socket_worker->connections as $con) {//广播上线通知
                                 if(property_exists($con,'email')){
-                                    $sendArrB=['type'=>'broadcast','class'=>'logIn','data'=>$logUserData];
-                                    $sendJsonB=json_encode($sendArrB);
-                                    $con->send($sendJsonB);
+                                    $con->send($instruct->broadcast_logIn($logUserData));
                                 }
                             }
+                            $logData=['connectionId'=>$connection->id,'userEmail'=>$Email];//日志
                             createLog('login',$logData);
                         }else{//查询为假,登录失败,返回数据
-                            $sendArr=['type'=>'loginStatus','data'=>false];
-                            $sendJson=json_encode($sendArr);
-                            $connection->send($sendJson);
+                            $connection->send($instruct->loginStatus(false));
                         }
                         break;
                     }
+            case 'anonymousLogin':{
+                if(!array_key_exists('data',$jsonData)){
+                    break;
+                }
+                if(gettype($jsonData['data'])!=='array'){
+                    break;
+                }
+                if(!array_key_exists('name',$jsonData['data'])){
+                    break;
+                }
+                if(gettype($jsonData['data']['name'])!=='string'){
+                    break;
+                }
+                $accountName=$jsonData['data']['name'];
+                if(!$instruct->ckAnonymousLogonAccount($accountName)){
+                    echo $accountName;
+                    break;
+                }else{
+                    echo "??!";
+                }
+                if(findAccountName($accountName)){//true则已存在同样的名称
+                    $connection->send($instruct->anonymousLoginStatus(false));
+                }else{//不存在同样的名称
+                    $connection->email=$accountName.'@anonymous';
+                    $newUserData=$theConfig['userDataStructure'];
+                    $newUserData['user_email']=$accountName.'@anonymous';
+                    $newUserData['user_qq']='100006';
+                    $newUserData['user_name']=$accountName;
+                    $newUserData['head_color']=randomHexColor();
+                    $connection->userData=$newUserData;
+                    $connection->send($instruct->anonymousLoginStatus(true));
+                    foreach ($socket_worker->connections as $con) {//广播上线通知
+                        if(property_exists($con,'email')){
+                            $con->send($instruct->broadcast_logIn($newUserData));
+                        }
+                    }
+                    $logData=['connectionId'=>$connection->id,'userAccount'=>$accountName];//登录用户数据
+                    createLog('anonymousLogin',$logData);
+                }
+                break;
+            }
             case 'get_userData':{//获取个人用户数据
                         if(property_exists($connection,'email')) {//必须是非匿名会话才能使用
                             $theUserEmail = $connection->email;
-                            $ref = GetUserData($theUserEmail);
-                            $sendArr = ['type' => 'send_userData', 'data' => $ref];//返回数据
-                            $sendJson = json_encode($sendArr);//这里会将汉字之类的转化为base64
-                            $connection->send($sendJson);
+                            if(substr($theUserEmail,-10)==='@anonymous'){//如果启用了匿名登录
+                                $ref=$instruct->send_userData($connection->userData);
+                                if($ref!==false){
+                                    $connection->send($ref);
+                                }
+                            }else{
+                                $userData = GetUserData($theUserEmail);
+                                $ref=$instruct->send_userData($userData);
+                                if($ref!==false){
+                                    $connection->send($ref);
+                                }
+                            }
                         }
                         break;
                     }
@@ -1095,23 +1149,31 @@ function handle_message($connection, $data){//收到客户端消息
                             $ref=array();
                             foreach ($socket_worker->connections as $con) {
                                 if(property_exists($con,'email')){
-                                    if(property_exists($con,'userData')){//去重
+                                    if(property_exists($con,'userData')){//去重步骤
                                         $lock=false;
-                                        foreach ($ref as $it){
-                                            if($con->userData==$it) {
+                                        foreach ($ref as $item){
+                                            if($con->userData==$item) {
                                                 $lock=true;
                                                 break;
                                             }
                                         }
                                         if($lock===false){
-                                            array_push($ref,$con->userData);
+                                            $sourceData=$con->userData;
+                                            $userData=[
+                                                'userEmail'=>$sourceData['user_email'],
+                                                'userQq'=>$sourceData['user_qq'],
+                                                'userName'=>$sourceData['user_name'],
+                                                'headColor'=>$sourceData['head_color'],
+                                            ];
+                                            array_push($ref,$userData);
                                         }
                                     }
                                 }
                             }
-                            $sendArr=['type'=>'send_presence','data'=>$ref];//返回数据
-                            $sendJson=json_encode($sendArr);
-                            $connection->send($sendJson);
+                            $sendData=$instruct->send_presence($ref);
+                            if($sendData!==false){
+                                $connection->send($sendData);
+                            }
                         }
                         break;
                     }
@@ -1129,14 +1191,14 @@ function handle_close($connection){
     global $socket_worker,$theData;
     $nowConId=$connection->id;
     if(property_exists($connection,'userData')) {//非匿名用户
-        $userEmail=$connection->userData['userEmail'];
+        $userEmail=$connection->userData['user_email'];
         $lock=false;//检测该用户是否还有在其他页面或设备有登录，有则跳过此下线广播
         foreach ($socket_worker->connections as $con) {
             if(property_exists($con,'email')){
                 if($con->id===$connection->id){
                     continue;
                 }
-                if($con->userData['userEmail']===$userEmail){
+                if($con->userData['user_email']===$userEmail){
                     $lock=true;
                     break;
                 }
@@ -1197,52 +1259,33 @@ function handle_close($connection){
     createLog('disconnect',$logData);
 }
 
-/**账号注册
- * @param $qqNumber
- * @return false|string
- */
-function sendVerificationCode($qqNumber){
-    try {
-        $code=creatVerificationCode();
-        $PHPMailerObj = new PHPMailer(true);
-        $PHPMailerObj->CharSet='UTF-8';
-        $PHPMailerObj->SMTPDebug=0;
-        $PHPMailerObj->isSMTP();
-        $PHPMailerObj->Host='smtp.qq.com';
-        $PHPMailerObj->SMTPAuth=true;
-        $PHPMailerObj->Username='emilia-t@qq.com';
-        $PHPMailerObj->Password=LicenseCodeIMAP;
-        $PHPMailerObj->SMTPSecure='ssl';
-        $PHPMailerObj->Port=465;
-        $PHPMailerObj->setFrom('emilia-t@qq.com', 'emilia-t');
-        $PHPMailerObj->addAddress('$qqNumber@qq.com', '$qqNumber@qq.com');//收件人
-        $PHPMailerObj->addReplyTo('emilia-t@qq.com','emilia-t');
-        $PHPMailerObj->isHTML(true);
-        $PHPMailerObj->Subject='欢迎您注册ATSW外棋账号！';
-        $PHPMailerObj->Body='<h1>【ATSW】您正在注册ATSW-Map账号，验证码：<span style="color: #323232;font-weight: 800">'.$code.'</span>，请勿向任何人泄露，若非本人操作，请忽略此邮件。</h1>'.date('Y-m-d H:i:s');
-        $PHPMailerObj->AltBody='【ATSW】您正在注册ATSW-Map账号，验证码：'.$code.'，请勿向任何人泄露，若非本人操作，请忽略此邮件。'.date('Y-m-d H:i:s');
-        $PHPMailerObj->send();
-        echo '验证码邮件发送成功，注册者：'.$qqNumber;
-        return $code;
-    } catch (Exception $e) {
-        echo '验证码邮件发送失败，注册者: '.$qqNumber, $PHPMailerObj->ErrorInfo;
-        return false;
-    }
-}
-
-/**创建注册验证码
+/**生成随机颜色
  * @return string
  */
-function creatVerificationCode(){
-    $str=['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
-    $token='';
-    for($i=0;$i<6;$i++){
-        $ran=rand(0,61);
-        $token.=$str[$ran];
-    }
-    return $token;
+function randomHexColor(){
+    $red = dechex(rand(0, 255));
+    $green = dechex(rand(0, 255));
+    $blue = dechex(rand(0, 255));
+    $red = strlen($red) === 1 ? '0' . $red : $red;
+    $green = strlen($green) === 1 ? '0' . $green : $green;
+    $blue = strlen($blue) === 1 ? '0' . $blue : $blue;
+    return $red.$green.$blue;
 }
-
+/**查找用户名是否存在
+ * @param $name
+ * @return false
+ */
+function findAccountName($name){
+    global $socket_worker;
+    foreach ($socket_worker->connections as $con) {
+        if(property_exists($con,'email')){
+            if($con->userName===$name){
+                return true;
+            }
+        }
+    }
+    return false;
+}
 /**调整图层排序
  * @param $arr
  * @param $passive
@@ -1319,7 +1362,7 @@ ETX;
         case 'disconnect':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['userEmail']};断开连接
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['userEmail']};断开连接
 
 ETX;
             echo $log;
@@ -1329,7 +1372,17 @@ ETX;
         case 'login':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['userEmail']};用户登录
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['userEmail']};用户登录
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'anonymousLogin':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['userAccount']};匿名登录
 
 ETX;
             echo $log;
@@ -1339,7 +1392,7 @@ ETX;
         case 'userAddArea':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};新增一个区域:{$logData['addId']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};新增一个区域:{$logData['addId']}
 
 ETX;
             echo $log;
@@ -1349,7 +1402,7 @@ ETX;
         case 'userAddPoint':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};新增一个点:{$logData['addId']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};新增一个点:{$logData['addId']}
 
 ETX;
             echo $log;
@@ -1359,7 +1412,7 @@ ETX;
         case 'userAddLine':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};新增一条线:{$logData['addId']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};新增一条线:{$logData['addId']}
 
 ETX;
             echo $log;
@@ -1369,7 +1422,7 @@ ETX;
         case 'textMessage':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};发送一条消息:{$logData['text']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};发送一条消息:{$logData['text']}
 
 ETX;
             echo $log;
@@ -1379,7 +1432,7 @@ ETX;
         case 'deleteElement':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};删除一个元素:{$logData['id']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};删除一个元素:{$logData['id']}
 
 ETX;
             echo $log;
@@ -1389,7 +1442,7 @@ ETX;
         case 'deleteLayer':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};删除一个图层:{$logData['id']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};删除一个图层:{$logData['id']}
 
 ETX;
             echo $log;
@@ -1399,7 +1452,7 @@ ETX;
         case 'deleteLayerAndMembers':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};删除一个图层及其成员:{$logData['id']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};删除一个图层及其成员:{$logData['id']}
 
 ETX;
             echo $log;
@@ -1409,7 +1462,7 @@ ETX;
         case 'restoreElement':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};恢复一个元素:{$logData['id']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};恢复一个元素:{$logData['id']}
 
 ETX;
             echo $log;
@@ -1419,7 +1472,7 @@ ETX;
         case 'updateElementNode':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};更新一个元素节点:{$logData['id']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};更新一个元素节点:{$logData['id']}
 
 ETX;
             echo $log;
@@ -1429,7 +1482,7 @@ ETX;
         case 'updateElement':{
             $log=<<<ETX
 
-{$time}--连接Id为:{$logData['connectionId']};Email为:{$logData['broadcastEmail']};更新一个元素:{$logData['id']}
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};更新一个元素:{$logData['id']}
 
 ETX;
             echo $log;
@@ -1530,6 +1583,7 @@ $socket_worker->onWorkerStart=function ($socket_worker){
         }
     );
 };
+startSetting();
 Worker::runAll();
 /**
 </worker-setting>

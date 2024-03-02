@@ -19,7 +19,7 @@ function LoginServer($email,$password){//存在则返回用户数据，否则返
         if(mysqli_num_rows($result)==1){//检查是否有结果
             $userData=mysqli_fetch_assoc($result);
             mysqli_close($link);
-            return ['userEmail'=>$userData['user_email'],'userQq'=>$userData['user_qq'],'userName'=>$userData['user_name'],'headColor'=>$userData['head_color']];
+            return ['user_email'=>$userData['user_email'],'user_qq'=>$userData['user_qq'],'user_name'=>$userData['user_name'],'head_color'=>$userData['head_color']];
         } else {
             mysqli_close($link);
             return false;

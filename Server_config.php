@@ -2,9 +2,9 @@
 /**这是一个示例配置文件
  * 服务器地址配置：
  **/
-const __SERVER_IP_PORT__='0.0.0.0:9998';
+const __SERVER_IP_PORT__='192.168.1.1:9998';
 /**
- * 数据库账号配置：
+ * 数据库配置：
  **/
 $mysql_public_server_address="localhost";//docker版请输入mysql容器名一般为mysql
 $mysql_public_server_hostname="localhost";//docker版请输入%
@@ -27,13 +27,6 @@ const RSA_public = '';
 //贴入您的RSA私钥
 const RSA_private = '';
 /**
- * SMTP邮箱配置：
- **/
-//贴入您的SMTP-IMAP code
-const LicenseCodeIMAP = '';
-//贴入您的SMTP-POP3 code
-const LicenseCodePOP3 = '';
-/**
  * SSL配置：
  **/
 //证书文件地址，请写入文件的全局地址
@@ -44,10 +37,12 @@ const __SERVER_SSL_STA__ = false;
 /**
  * 服务器属性配置
  **/
+//服务器特殊功能
+const __ANONYMOUS_LOGIN__ = false;//是否启用匿名登录功能
 //服务器基础信息
 const __SERVER_CONFIG__IMG__ = './config/map_img.png';//地图的背景图片位置，图像尺寸为：220px * 165px 最大为60kb 支持PNG和jpg类型的图片格式
 const __SERVER_CONFIG__KEY__ = 'k0';//key是唯一的长度不限，格式k[a-Z0-9]，是客户端采用https://name.com/ + m/key 的方式快捷访问地图服务器的
-const __SERVER_CONFIG__URL__ = 'wss://192.168.1.1:443';//您的服务器websocket链接的地址
+const __SERVER_CONFIG__URL__ = 'ws://192.168.1.1:9998';//您的服务器websocket链接的地址
 const __SERVER_CONFIG__NAME__ = '地图名称';//您的服务器名称
 const __SERVER_CONFIG__MAX_USER__ = '20';//服务器最大在线人数
 //以下四个常量规定了地图在什么区域内进行绘制
