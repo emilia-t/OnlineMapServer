@@ -1,3 +1,5 @@
 <?php
-//测试数据连接
+/**
+ * 此api已弃用
+ */
 function testDataBaseLink(){}

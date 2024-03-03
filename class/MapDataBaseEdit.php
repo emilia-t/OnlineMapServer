@@ -126,6 +126,79 @@ ETX
         $this->linkDatabase();
         $this->testLayerOrder();
     }
+    /**获取地图数据
+     * @return array|false
+     */
+    function getMapData(){
+        $sql = "SELECT * FROM $this->mapDateSheetName WHERE phase!=2";//编辑查询语句
+        $sqlTest = mysqli_query($this->linkMysqli, $sql);
+        if ($sqlTest) {
+            return mysqli_fetch_all($sqlTest, MYSQLI_ASSOC);
+        } else {
+            return false;
+        }
+    }
+    /**登录服务器
+     * @param $email
+     * @param $password
+     * @return array|false
+     */
+    function loginServer($email,$password){
+        $pattern="/[^a-zA-Z0-9_@.+\/=-]/";
+        preg_match($pattern,$email.$password,$res);//检测输入
+        if(count($res)>0){//存在不合规字符
+            return false;
+        }
+        else{
+            $sql="SELECT * FROM account_data cou WHERE cou.user_email=? AND cou.pass_word=?";//准备查询语句
+            $stmt=mysqli_prepare($this->linkMysqli,$sql);//创建预处理语句
+            mysqli_stmt_bind_param($stmt,"ss",$email,$password); // 'ss' 指定两个参数类型为字符串
+            mysqli_stmt_execute($stmt);//执行查询
+            $result=mysqli_stmt_get_result($stmt);//获取查询结果
+            if(mysqli_num_rows($result)==1){//检查是否有结果
+                $userData=mysqli_fetch_assoc($result);
+                return [
+                    'user_email'=>$userData['user_email'],
+                    'user_qq'=>$userData['user_qq'],
+                    'user_name'=>$userData['user_name'],
+                    'head_color'=>$userData['head_color']
+                ];
+            } else {
+                return false;
+            }
+        }
+    }
+    /**获取用户数据
+     * @param $email
+     * @return array|false
+     */
+    function getUserData($email){
+        $pattern = "/[^a-zA-Z0-9_@.+\/=-]/";
+        preg_match($pattern, $email,$res);
+        if(count($res)>0){//存在不合规字符
+            return false;
+        }
+        else{
+            $sql="SELECT user_email, user_name, map_layer, default_a1, save_point, user_qq, head_color FROM account_data cou WHERE cou.user_email = ?";
+            $stmt = $this->linkMysqli->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param("s", $email); // 's' 指定参数类型为字符串
+                $stmt->execute();
+                $result = $stmt->get_result();
+                if ($result->num_rows == 1) {
+                    $stmt->close();// 关闭语句
+                    return $result->fetch_assoc();// 获取关联数组形式的结果
+                } else {
+                    $stmt->close();// 关闭语句
+                    return false;
+                }
+            }
+            else{
+                error_log("预处理语句创建失败: " . $this->linkMysqli->error);
+                return false;
+            }
+        }
+    }
     /**用于防止PDO断连
      * @return void
      */
@@ -182,14 +255,14 @@ ETX
      */
     function linkDatabase(){
         global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
-        $this->linkMysqli=mysqli_connect($mysql_public_server_address, $mysql_public_user, $mysql_public_password);
+        $this->linkMysqli=new mysqli($mysql_public_server_address, $mysql_public_user, $mysql_public_password,$mysql_public_db_name);
         if($this->linkMysqli){
+            $this->linkMysqli->set_charset("utf8");
             $this->isLinkMysqli=true;
         }else{
             $this->isLinkMysqli=false;
         }
-        mysqli_select_db($this->linkMysqli, $mysql_public_db_name);
-        $dsn='mysql:host='.$mysql_public_server_address.';dbname='.$mysql_public_db_name;
+        $dsn='mysql:host='.$mysql_public_server_address.';dbname='.$mysql_public_db_name.';charset=utf8';
         $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION];
         $this->linkPdo=new PDO($dsn,$mysql_public_user,$mysql_public_password,$options);
         if($this->linkPdo->query("SELECT 1")){

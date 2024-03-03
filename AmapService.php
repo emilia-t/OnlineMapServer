@@ -47,13 +47,11 @@ require 'Workerman/Autoloader.php';
 //require 'PHPMailer/src/Exception.php';
 //require 'PHPMailer/src/PHPMailer.php';
 //require 'PHPMailer/src/SMTP.php';
+
 require 'config/Server_config.php';//服务器配置
 require 'api/Public_getPublickey.php';//获取公钥与私钥的API
 require 'api/Other_RsaTranslate.php';//解密和加密功能
-require 'api/Public_LoginServer.php';//登录验证功能
-require 'api/Public_GetUserData.php';//查询用户数据
-require 'api/Public_GetMapData.php';//查询地图数据
-require 'api/Other_createMysqlDataBase.php';//创建数据库
+
 require 'class/QualityInspectionRoom.php';//通用数据检测工具
 require 'class/JsonDisposalTool.php';//json工具
 require 'class/MapDataBaseEdit.php';//地图数据库编辑工具
@@ -1050,7 +1048,7 @@ function handle_message($connection, $data){//收到客户端消息
                             break;
                         }
                         $RealPws=RsaTranslate($Password,'decode');//1.解密
-                        $logUserData=LoginServer($Email,$RealPws);//2.数据库进行查询
+                        $logUserData=$newMDBE->loginServer($Email,$RealPws);//2.数据库进行查询
                         if($logUserData!==false){
                             $connection->email=$Email;//直接给该连接加入新属性
                             $connection->userData=$logUserData;
@@ -1082,10 +1080,7 @@ function handle_message($connection, $data){//收到客户端消息
                 }
                 $accountName=$jsonData['data']['name'];
                 if(!$instruct->ckAnonymousLogonAccount($accountName)){
-                    echo $accountName;
                     break;
-                }else{
-                    echo "??!";
                 }
                 if(findAccountName($accountName)){//true则已存在同样的名称
                     $connection->send($instruct->anonymousLoginStatus(false));
@@ -1117,7 +1112,7 @@ function handle_message($connection, $data){//收到客户端消息
                                     $connection->send($ref);
                                 }
                             }else{
-                                $userData = GetUserData($theUserEmail);
+                                $userData = $newMDBE->getUserData($theUserEmail);
                                 $ref=$instruct->send_userData($userData);
                                 if($ref!==false){
                                     $connection->send($ref);
@@ -1128,7 +1123,7 @@ function handle_message($connection, $data){//收到客户端消息
                     }
             case 'get_mapData':{//获取地图数据
                         if(property_exists($connection,'email')){//必须是非匿名会话才能使用
-                            $ref=GetMapData();
+                            $ref=$newMDBE->getMapData();
                             $sendArr=['type'=>'send_mapData','data'=>$ref];//返回数据
                             $sendJson=json_encode($sendArr);
                             $connection->send($sendJson);
