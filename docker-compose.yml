@@ -2,19 +2,40 @@ version: '3'
 services:
   mysql:
     image: mysql:5.7.31
+    ports:
+      - 3307:3306
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - MYSQL_ROOT_PASSWORD=mopumopu%9987&
       - TZ=Asia/Shanghai
-    volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: ["--default-authentication-plugin=mysql_native_password"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
   php:
-    image: php7:v7.3.31-oms
+    build:
+      context: .
+      dockerfile: dockerfile
     ports:
       - 4433:4433
-    depends_on:
-      - mysql
     volumes:
-      - D:/OnlineMapServer:/app
-    command: ["php", "/app/AmapService.php","start"]
+      - D:/mymap/OnlineMapServer:/app
     environment:
       - TZ=Asia/Shanghai
+    command: ["php", "/app/AmapService.php","start"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+##如果因映射端口被主机占用导致无法启动服务，请关闭占用端口的程序或更换为新的端口。
+##image：指定服务所使用的 Docker 镜像的名称。Docker 将从该镜像创建服务的容器实例。
+##ports：定义端口映射，将容器内部的端口映射到主机上的端口。格式为 主机端口:容器端口。
+##volumes：指定要挂载到容器内部的卷（Volumes）。可以将主机上的目录或文件挂载到容器内部，或者使用匿名卷。
+##environment：设置容器的环境变量。可以使用该关键字为容器传递配置参数等信息。
+##command：定义容器启动时要执行的命令。可以覆盖镜像中默认的启动命令。
+##depends_on：指定服务之间的依赖关系。Docker Compose 将在启动服务之前先启动其所依赖的服务。
+##condition：用于指定服务之间的依赖关系条件。例如，service_healthy条件表示必须等待依赖的服务处于健康状态后才能启动。
+##healthcheck：健康检查的一些项目

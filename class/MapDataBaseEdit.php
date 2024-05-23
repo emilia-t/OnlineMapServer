@@ -16,113 +16,7 @@ class MapDataBaseEdit
         $this->mapDateLayerName=$dateLayerName;
         $this->startSetting();
     }
-    function testDataBaseLink(){
-        global $mysql_public_server_hostname,$mysql_root_password,$mysql_public_server_address,$mysql_public_user,$mysql_public_password,$mysql_public_db_name;
-        //SQL 创建数据库
-        define('CreateSqlA',<<<ETX
-FLUSH PRIVILEGES;
-CREATE DATABASE `$mysql_public_db_name` DEFAULT CHARACTER
-SET utf8 COLLATE utf8_general_ci; FLUSH PRIVILEGES;
-USE $mysql_public_db_name;
-SET NAMES utf8mb4;
-SET FOREIGN_KEY_CHECKS=0;
-DROP TABLE IF EXISTS `account_data`;
-CREATE TABLE `account_data` (
-`user_email` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NOT NULL DEFAULT 'unknown' COMMENT '用户电子邮箱',
-`user_name` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NOT NULL DEFAULT 'unknown' COMMENT '用户名',
-`pass_word` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NOT NULL DEFAULT 'unknown' COMMENT '密码',
-`map_layer` INT (11) NULL DEFAULT 0 COMMENT '默认层级',
-`default_a1` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT '{x:0,y:0}' COMMENT '默认的A1坐标',
-`save_point` MEDIUMTEXT CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '用户保存的坐标，收藏点',
-`user_qq` VARCHAR (255) CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT '100006' COMMENT '用户QQ号',
-`head_color` VARCHAR (6) CHARACTER SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT 'ffffff' COMMENT '头像颜色16进制的',
-PRIMARY KEY (`user_email`) USING BTREE
-) 
-ENGINE=INNODB CHARACTER
-SET=utf8 COLLATE=utf8_croatian_ci ROW_FORMAT=Dynamic;
-DROP TABLE IF EXISTS `map_0_data`;
-CREATE TABLE `map_0_data` (`id` BIGINT (20) NOT NULL AUTO_INCREMENT COMMENT 'id',`type` VARCHAR (12) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT '数据类型',`points` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT '节点',`point` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT '起始坐标点',`color` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT NULL COMMENT '颜色',`phase` INT (1) NOT NULL DEFAULT 1 COMMENT '元素周期,默认为1',`width` INT (11) NULL DEFAULT NULL COMMENT '点线的显示宽度，单位为px',`child_relations` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '此条数据下的子关系id集合',`father_relation` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT NULL COMMENT '此条数据的上级关系id',`child_nodes` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '对于关系类型的数据类型的成员节点',`father_node` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT NULL COMMENT '对于关系类型的数据类型的父节点',`details` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '可以拓展的列，例如一些详细描述信息',`custom` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '可以拓展的元素配置，例如一些特殊图标',PRIMARY KEY (`id`) USING BTREE) ENGINE=INNODB CHARACTER
-SET=utf8 COLLATE=utf8_croatian_ci ROW_FORMAT=Dynamic;
-DROP TABLE IF EXISTS `map_template_data`;
-CREATE TABLE `map_template_data` (`id` VARCHAR (12) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT 'id',`type` VARCHAR (12) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT '数据类型',`points` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT '节点',`point` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NOT NULL COMMENT '起始坐标点',`color` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT NULL COMMENT '颜色',`phase` INT (1) NOT NULL DEFAULT 1 COMMENT '元素周期,默认为1',`width` INT (11) NULL DEFAULT NULL COMMENT '点线的显示宽度，单位为px',`child_relations` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '此条数据下的子关系id集合',`father_relation` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT NULL COMMENT '此条数据的上级关系id',`child_nodes` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '对于关系类型的数据类型的成员节点',`father_node` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL DEFAULT NULL COMMENT '对于关系类型的数据类型的父节点',`details` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '可以拓展的列，例如一些详细描述信息',`custom` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_croatian_ci NULL COMMENT '可以拓展的元素配置，例如一些特殊图标',PRIMARY KEY (`id`) USING BTREE) ENGINE=INNODB CHARACTER
-SET=utf8 COLLATE=utf8_croatian_ci ROW_FORMAT=Dynamic;
-SET NAMES utf8mb4;
-SET FOREIGN_KEY_CHECKS=0;
-DROP TABLE IF EXISTS `map_0_layer`;
-CREATE TABLE `map_0_layer` (`id` BIGINT (20) NOT NULL AUTO_INCREMENT,`type` VARCHAR (255) CHARACTER
-SET utf8 COLLATE utf8_general_ci NOT NULL,`members` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_general_ci NOT NULL,`structure` MEDIUMTEXT CHARACTER
-SET utf8 COLLATE utf8_general_ci NOT NULL,`phase` int(1) NOT NULL DEFAULT 1,PRIMARY KEY (`id`) USING BTREE) ENGINE=INNODB AUTO_INCREMENT=29 CHARACTER
-SET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=Dynamic;
-SET FOREIGN_KEY_CHECKS=1;
-SET FOREIGN_KEY_CHECKS=1; FLUSH PRIVILEGES; GRANT
-SELECT,
-INSERT,
-DELETE,
-UPDATE ON $mysql_public_db_name.*TO '$mysql_public_user'@'$mysql_public_server_hostname'; FLUSH PRIVILEGES;
-ETX
-        );
-        //检测数据库是否创建
-        $PbLink=mysqli_connect($mysql_public_server_address, $mysql_public_user, $mysql_public_password);
-        //检测公开账号连接
-        if(!$PbLink){//无法连接公用账号
-            print_r("公用账号连接数据库失败，请检查/config/Server_config.php下的配置\n");
-        }else{//能连接->检测数据库是否存在
-            print_r("公用账号连接数据库成功\n");
-            print_r("检测数据库中：\n");
-            // 检查数据库是否存在
-            $result = mysqli_query($PbLink, "SHOW DATABASES LIKE '{$mysql_public_db_name}'");
-            if (mysqli_num_rows($result) == 0) {
-                //连接数据库失败
-                print_r("正在创建地图数据库\n");
-                //创建数据库：
-                //1关闭上一个连接
-                mysqli_close($PbLink);
-                //2.新建root连接
-                $RootLink=mysqli_connect($mysql_public_server_address, 'root', $mysql_root_password);
-                if(!$RootLink){
-                    print_r("root账号连接失败，请检查/config/Server_config.php下的配置\n");
-                }else{
-                    //3.创建数据库-表单
-                    $RootLink->multi_query(CreateSqlA);
-                    //4.结束连接
-                    mysqli_close($RootLink);
-                    print_r("已创建数据库{$mysql_public_db_name}......已经为{$mysql_public_user}授予insert,update,delete,select权限......Done\n");
-                    print_r("请主动检查“{$mysql_public_db_name}”是否已创建，请主动检查“{$mysql_public_user}”权限是否正确\n...All Done\n");
-                }
-            }else{
-                print_r("...All Done\n");
-            }
-            try {
-                mysqli_close($PbLink);
-            }catch (Exception $E){
-
-            }
-        }
-    }
     function startSetting(){
-        $this->testDataBaseLink();
         $this->linkDatabase();
         $this->testLayerOrder();
     }
@@ -250,6 +144,26 @@ ETX
             return false;
         }
     }
+    /**获取全部图层数据
+     * @return array|boolean
+     */
+    function getAllLayerData(){
+        try {
+            $dbh = $this->linkPdo;
+            $sql = "SELECT * FROM $this->mapDateLayerName";
+            $stmt = $dbh->prepare($sql);// 创建语句对象
+            $stmt->execute();// 执行查询
+            $rowCount=$stmt->rowCount();
+            if($rowCount>0){
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);// 获取结果
+            }else{
+                return [];
+            }
+        } catch (PDOException $e) {
+            echo '数据库查询错误: ' . $e->getMessage();
+            return false;
+        }
+    }
     /**连接数据库
      * @return void
      */
@@ -272,52 +186,37 @@ ETX
             $this->isLinkPdo=false;
         }
     }
-    /**上传线数据，请注意不要使用二维数组，二维值请转为json->base64
+
+    /**上传地图数据，请注意不要使用二维数组，二维值请通过json->base64转化为字符串
      * @param $lineObj array
-     * @return bool
+     * @param $type string
+     * @return int element id or -1
      */
-    function uploadLineData($lineObj){
-        try {
-            $db=$this->linkPdo;
-            $sql="INSERT INTO {$this->mapDateSheetName} (id,type,points,point,color,phase,width,child_relations,father_relation,child_nodes,father_node,details) VALUES (NULL,:typ,:points,:point,:color,:phase,:width,NULL,NULL,NULL,NULL,:details)";
-            //准备预处理语句
-            $stmt=$db->prepare($sql);
-            //执行预处理语句，并绑定参数
-            $stmt->bindParam(':typ',$lineObj['type']);
-            $stmt->bindParam(':points',$lineObj['points']);
-            $stmt->bindParam(':point',$lineObj['point']);
-            $stmt->bindParam(':color',$lineObj['color']);
-            $stmt->bindParam(':width',$lineObj['width']);
-            $stmt->bindParam(':details',$lineObj['details']);
-            $stmt->bindParam(':phase',$lineObj['phase']);
-            $stmt->execute();
-            //输出成功或失败的信息
-            if ($stmt->rowCount()>0){
-                return true;
-            } else {
-                return false;
+    function uploadElementData($lineObj,$type){
+        try{
+            if($type==='point' || $type==='line' || $type==='area' || $type==='curve'){
+                $pdo=$this->linkPdo;
+                $sql="INSERT INTO {$this->mapDateSheetName} (id,type,points,point,color,phase,width,child_relations,father_relation,child_nodes,father_node,details,custom) VALUES (NULL,:typ,:points,:point,:color,1,:width,NULL,NULL,NULL,NULL,:details,:custom)";
+                $stmt=$pdo->prepare($sql);//准备预处理语句
+
+                $stmt->bindParam(':typ',$type);//执行预处理语句，并绑定参数
+                $stmt->bindParam(':points',$lineObj['points']);
+                $stmt->bindParam(':point',$lineObj['point']);
+                $stmt->bindParam(':color',$lineObj['color']);
+                $stmt->bindParam(':width',$lineObj['width']);
+                $stmt->bindParam(':details',$lineObj['details']);
+                $stmt->bindParam(':custom',$lineObj['custom']);
+                $stmt->execute();
+                if($stmt->rowCount()>0){//输出成功或失败的信息
+                    return $pdo->lastInsertId();
+                }else{
+                    return -1;
+                }
+            }else{
+                return -1;
             }
-        }catch (Exception $E){
-            return false;
-        }
-    }
-    /**上传点数据，请注意不要使用二维数组，二维值请转为json->base64
-     * @param $pointObj array
-     * @return bool
-     */
-    function uploadPointData($pointObj){
-        try {
-            $link = $this->linkMysqli;
-            //编辑查询语句
-            $sql = "INSERT INTO {$this->mapDateSheetName} (id,type,points,point,color,phase,width,child_relations,father_relation,child_nodes,father_node,details,custom) VALUES (NULL,'{$pointObj['type']}','{$pointObj['points']}','{$pointObj['point']}','{$pointObj['color']}',{$pointObj['phase']},{$pointObj['width']},NULL,NULL,NULL,NULL,'{$pointObj['details']}','{$pointObj['custom']}')";
-            $sqlQu = mysqli_query($link, $sql);
-            if ($sqlQu) {
-                return true;
-            } else {
-                return false;
-            }
-        }catch (Exception $E){
-            return false;
+        }catch(Exception $E){
+            return -1;
         }
     }
     /**查询最新的ID号
@@ -381,6 +280,7 @@ ETX
     }
     /**更新一个地图要素的生命周期
      * @param int $elementId
+     * @param int $phase
      * @return bool
      */
     function updateElementPhase($elementId,$phase){
@@ -396,6 +296,55 @@ ETX
                 }
             } else {
                 return false;
+            }
+        }
+        catch (Exception $E){
+            return false;
+        }
+    }
+    /**更新多个地图要素的生命周期并且返回一个按元素类型分类后的数组
+     * $phase为2时仅返回被删除的元素id，并且会按元素类型分组
+     * $phase为1时返回被还原的元素数据，并且会按元素类型分组
+     * @param array $ids
+     * @param int $phase
+     * @return array|false
+     */
+    function updateElementsPhase($ids,$phase){
+        try{
+            $change=['point'=>[],'line'=>[],'area'=>[],'curve'=>[]];
+            $link=$this->linkMysqli;
+            $idsString=implode(',', $ids);
+            $selectSql="SELECT * FROM {$this->mapDateSheetName} WHERE id IN ({$idsString})";
+            $resultA=mysqli_query($link, $selectSql);//如何获取结果
+            if ($resultA){//分类要操作的元素
+                if($phase==2){//删除
+                    while($row=mysqli_fetch_assoc($resultA)){
+                        if($row['type']=='point'){array_push($change['point'],(int)$row['id']);
+                        }elseif($row['type']=='line'){array_push($change['line'],(int)$row['id']);
+                        }elseif($row['type']=='area'){array_push($change['area'],(int)$row['id']);
+                        }elseif($row['type']=='curve'){array_push($change['curve'],(int)$row['id']);}
+                    }
+                }elseif($phase==1){//还原
+                    while($row=mysqli_fetch_assoc($resultA)){
+                        if($row['type']=='point'){array_push($change['point'],$row);
+                        }elseif($row['type']=='line'){array_push($change['line'],$row);
+                        }elseif($row['type']=='area'){array_push($change['area'],$row);
+                        }elseif($row['type']=='curve'){array_push($change['curve'],$row);}
+                    }
+                }
+            }
+            if($resultA){//执行删除/恢复操作
+                $pha=1;
+                if($phase==2)$pha=2;
+                $updateSql="UPDATE {$this->mapDateSheetName} SET phase={$pha} WHERE id IN ({$idsString})";
+                $resultB=mysqli_query($link,$updateSql);
+                if($resultB){
+                    if(mysqli_affected_rows($link)!=0){//受影响的行数大于0
+                        return $change;
+                    }else{
+                        return false;
+                    }
+                }
             }
         }
         catch (Exception $E){
@@ -658,7 +607,7 @@ ETX
     }
     /**根据ID获取一个地图要素的数据
      * @param int $elementId
-     * @return false
+     * @return array | false
      */
     function getElementById($elementId){
         try {
@@ -674,7 +623,34 @@ ETX
                 return false;
             }
         } catch (PDOException $e) {
+            echo "\n";
             echo '数据库查询错误: ' . $e->getMessage();
+            echo "\n";
+            return false;
+        }
+    }
+    /**根据多个ID获取多个地图要素的数据
+     * @param array $elementIds
+     * @return false
+     */
+    function getElementsByIds($elementIds){
+        try {
+            $dbh = $this->linkPdo;
+            $sql="SELECT * FROM $this->mapDateSheetName WHERE id IN (:ids)";
+            $stmt=$dbh->prepare($sql);// 创建语句对象
+            $idsStr=implode(',', $elementIds);
+            $stmt->bindParam(':ids', $idsStr, PDO::PARAM_INT);// 绑定参数
+            $stmt->execute();// 执行查询
+            $rowCount=$stmt->rowCount();
+            if($rowCount!==0){
+                return $stmt->fetch(PDO::FETCH_ASSOC);// 获取结果
+            }else{
+                return false;
+            }
+        } catch (PDOException $e) {
+            echo "\n";
+            echo '数据库查询错误: ' . $e->getMessage();
+            echo "\n";
             return false;
         }
     }

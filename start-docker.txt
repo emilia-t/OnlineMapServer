@@ -1,4 +1,4 @@
-0.更改基本配置
+1.更改基本配置
 打开config/server_config.php
 必要修改：
 1：$mysql_public_server_address值改为'mysql'
@@ -12,11 +12,5 @@
 8：__SERVER_CONFIG__URL__根据服务器ip地址和服务端口号自行修改
 其他配置修改详见server_config.php的末尾注释
 
-1.创建自定义php7镜像
-docker build -t php7:v7.3.31-oms .
-
-2.构建docker-compose
+2.构建和启动服务
 docker-compose up
-
-3.重启两次
-docker-compose restart

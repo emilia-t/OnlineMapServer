@@ -32,16 +32,26 @@ class instruct
             return $Array;
         }
     }
-    /**检查函数ck**/
+    function creatDate(){
+        $date=getdate();
+        $mon=sprintf('%02d',$date['mon']);
+        $day=sprintf('%02d',$date['mday']);
+        $hours=sprintf('%02d',$date['hours']);
+        $minutes=sprintf('%02d',$date['minutes']);
+        $seconds=sprintf('%02d',$date['seconds']);
+        return "{$date['year']}-{$mon}-{$day} {$hours}:{$minutes}:{$seconds}";
+    }
+    /**检查函数ck*
+     * @param $email
+     * @param $password
+     * @return bool
+     */
     //登录名称和密码验证(非匿名)
     function ckLogonAccount($email,$password){
-        if(!is_string($email) || !is_string($password)){
-            return false;
-        }
         $pattern ="/[^a-zA-Z0-9_@.+\/=-]/";
-        if (preg_match($pattern, $email.$password)) {
+        if (preg_match($pattern, $email.$password)){
             return false;
-        } else {
+        }else{
             return true;
         }
     }
@@ -136,6 +146,25 @@ class instruct
         ]);
     }
     /**广播指令**/
+    //广播指令-更新多个图层数据
+    function broadcast_batchUpdateLayerData($layerDataArray){
+        if(!is_array($layerDataArray)){
+            return $this->turn([
+                'type'=>'broadcast',
+                'class'=>'batchUpdateLayerData',
+                'conveyor'=>'',
+                'time'=>$this->creatDate(),
+                'data'=>[]
+            ]);
+        }
+        return $this->turn([
+            'type'=>'broadcast',
+            'class'=>'batchUpdateLayerData',
+            'conveyor'=>'',
+            'time'=>$this->creatDate(),
+            'data'=>$layerDataArray
+        ]);
+    }
     //广播指令-用户登录
     function broadcast_logIn($logUserData){
         if($this->checked){
