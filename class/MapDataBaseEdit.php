@@ -358,25 +358,19 @@ class MapDataBaseEdit
     function updateElementData($newData){
         try{
             $db=$this->linkPdo;
-            //获取id属性
-            $id=$newData['id'];
-            //移除id属性
+            $id=$newData['id'];//获取id属性
             unset($newData['id']);
-            //移除type属性
             unset($newData['type']);
-            $keys=array_keys($newData);
-            $cols=implode('=?, ',$keys).'=?';//在最后一个键名后面加上"=?"
+            $keys=array_keys($newData);//提取改变的属性名称
+            $cols=implode('=?, ',$keys).'=?';//为每个属性名称添加占位符并在最后为id属性添加占位符
             $sql="UPDATE {$this->mapDateSheetName} SET {$cols} WHERE id=?";
-            //准备预处理语句
-            $stmt=$db->prepare($sql);
-            //执行预处理语句，并绑定参数
-            $params=array_values($newData);
-            $params[]=$id;
-            $stmt->execute($params);
-            //输出成功或失败的信息
-            if ($stmt->rowCount()>0){
+            $stmt=$db->prepare($sql);//添加预处理语句
+            $params=array_values($newData);//重新索引数组
+            $params[]=$id;//末尾添加id
+            $stmt->execute($params);//执行预处理语句，并绑定参数
+            if($stmt->rowCount()>0){
                 return true;
-            } else {
+            }else{
                 return false;
             }
         }

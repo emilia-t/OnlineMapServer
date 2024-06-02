@@ -178,11 +178,10 @@ function checkPublicAccount(){
         return true;
     }
 }
-
-echo "Please wait ! the service will start in 10 seconds.\n";
-echo "Please wait ! the service will start in 10 seconds.\n";
-echo "Please wait ! the service will start in 10 seconds.\n";
-//usleep(1000000);//15000000
+echo "OnlineMapServer\n";
+echo "(c) Minxi Wan。保留所有权利。\n";
+echo "Please wait ! the service will start in 5 seconds.\n";
+usleep(5000000);
 echo "\n\n";
 echo "① upload layer cache to mysql...\n";//////////////////////
 if(uploadCache()===10){//PCNTL check
@@ -245,7 +244,6 @@ if(grantPublicAuthority()===false){
 echo "\n\n";
 echo "...All Done\n";
 echo "\n\n";
-//usleep(1000000);
 ################Script initial execution################
 
 /*
@@ -362,7 +360,8 @@ $theConfig=[
     'time'=>date('m-j'),
     'logFile'=>null,
     'typeList'=>[
-        'get_serverImg','get_serverConfig','broadcast','get_publickey','login','publickey',
+        'ping','pong',
+        'broadcast','get_serverImg','get_serverConfig','get_publickey','login','publickey',
         'loginStatus','get_userData','send_userData','get_mapData','send_mapData','get_presence',
         'send_presence','get_activeData','send_activeData','send_error','send_correct','get_mapLayer',
         'send_mapLayer'
@@ -390,7 +389,7 @@ $theConfig['logFile']=fopen('./log/'.$theConfig['time'].'.txt','a+');
  */
 function startSetting(){
     global $theConfig,$newLDE;
-    if(__ANONYMOUS_LOGIN__===true)array_push($theConfig['typeList'],'anonymousLogin');//允许匿名登录指令
+    if(__ANONYMOUS_LOGIN__===true)$theConfig['typeList'][]='anonymousLogin';//允许匿名登录指令
     $newLDE->buildLayerData();//构建图层数据
     $newLDE->buildTemplateLink();//构建模板与图层关系链接
     return true;
@@ -436,6 +435,10 @@ function handle_message($connection,$data){//收到客户端消息
 //                print_r(base64_encode(json_encode($jsonData['data'],true)));
 //                break;
 //            }
+            case 'ping':{
+                $connection->send(json_encode(['type'=>'pong']));
+                break;
+            }
             case 'broadcast':{//广播数据
                 if($activated){//必须是非匿名会话才能使用
                     if(array_key_exists('class',$jsonData)){//0.class检测
@@ -949,7 +952,7 @@ function handle_message($connection,$data){//收到客户端消息
                                                 $newQIR->arrayPropertiesCheck('value',$value)){//7.3检查该项键值对是否存在
                                                 if($newQIR->commonKeyNameCheck($value['key']) AND
                                                     $newQIR->illegalCharacterCheck($value['value'])){//8.4检查键名和键值是否正常，如果不正常则跳出当前循环case
-                                                    array_push($details,$value);
+                                                    $details[]=$value;
                                                     continue;
                                                 }else{
                                                     continue;
@@ -1259,19 +1262,20 @@ function handle_message($connection,$data){//收到客户端消息
                                 $templateA=$jsonData['data']['templateA'];
                                 $templateB=$jsonData['data']['templateB'];
                                 $method=$jsonData['data']['method'];
-                                $affectedLayer=$newLDE->adjustElementOrder($elementA,$elementB,$templateA,$templateB,$method);
-                                if(count($affectedLayer['layers'])===1){//受到影响的只有一个图层
+                                $affected=$newLDE->adjustElementOrder($elementA,$elementB,$templateA,$templateB,$method);
+                                if(count($affected['layers'])===0){break;}
+                                elseif(count($affected['layers'])===1){//受到影响的只有一个图层
                                     $LayersData=[];
-                                    foreach($affectedLayer['layers'] as $item){
+                                    foreach($affected['layers'] as $item){
                                         $layerData=$newLDE->getLayerMembersStructure($item);
                                         if($layerData!==false){
                                             unset($layerData['members']);//不需要members
                                             $layerData['id']=$item;//附加图层id
-                                            array_push($LayersData,$layerData);
+                                            $LayersData[]=$layerData;
                                         }
                                     }
                                     if(count($LayersData)!==0){
-                                        $sendJson=$instruct->broadcast_batchUpdateLayerData($LayersData);
+                                        $sendJson=$instruct->broadcast_batchUpdateLayerData($connection->email,$LayersData);
                                         foreach ($socket_worker->connections as $con) {
                                             if(property_exists($con,'email')){//避免发送给匿名用户
                                                 if($con->email != ''){
@@ -1282,28 +1286,58 @@ function handle_message($connection,$data){//收到客户端消息
                                     }
                                 }
                                 else{//多个图层受影响，还可能存在元素影响
-
+                                    $LayersData=[];//被改动的图层们
+                                    $ElementData=null;//被改动的元素数据
+                                    foreach($affected['layers'] as $item){
+                                        $layerData=$newLDE->getLayerMembersStructure($item);
+                                        if($layerData!==false){
+                                            $layerData['id']=$item;//附加图层id
+                                            $LayersData[]=$layerData;
+                                        }
+                                    }
+                                    if($affected['element']!==-1){
+                                        $getData=$newMDBE->getElementById($affected['element']);
+                                        if($getData!==false){
+                                            $ElementData['details']=$getData['details'];
+                                            $ElementData['custom']=$getData['custom'];
+                                            $ElementData['id']=(int)$getData['id'];
+                                            $ElementData['type']=$getData['type'];
+                                        }
+                                    }
+                                    if(count($LayersData)!==0){
+                                        $broadcastEmail=$connection->email;
+                                        $dateTime=creatDate();
+                                        $sendJson1=$instruct->broadcast_batchUpdateLayerData($broadcastEmail,$LayersData);
+                                        $sendArray2=['type'=>'broadcast','class'=>'updateElement','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$ElementData];
+                                        $sendJson2=json_encode($sendArray2);
+                                        foreach ($socket_worker->connections as $con) {
+                                            if(property_exists($con,'email')){//避免发送给匿名用户
+                                                if($con->email != ''){
+                                                    $con->send($sendJson1);
+                                                    if($ElementData!==null){
+                                                    $con->send($sendJson2);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                                 break;
                             }
                             case 'updateLayerOrder':{//更新图层排序
-                                $oldMembers=$newMDBE->getOrderLayerData();
-                                $oldMembers=json_decode($oldMembers['members']);
                                 if(!$newQIR->arrayPropertiesCheck('passive',$jsonData['data'])){break;}
                                 if(!$newQIR->arrayPropertiesCheck('active',$jsonData['data'])){break;}
                                 if(!$newQIR->arrayPropertiesCheck('type',$jsonData['data'])){break;}
                                 $passive=(int)$jsonData['data']['passive'];
                                 $active=(int)$jsonData['data']['active'];
                                 $nowType=$jsonData['data']['type'];
-                                if(!in_array($passive,$oldMembers)){break;}
-                                if(!in_array($active,$oldMembers)){break;}
-                                $newMember=adjustLayerOrder($oldMembers,$passive,$active,$nowType);
-                                if($newMember!=$oldMembers){
-                                    $newOrderMemberStr=$newMDBE->adjustOrderLayerData($newMember);
-                                    if($newOrderMemberStr!==false){
+                                $affected=$newLDE->updateLayerOrder($passive,$active,$nowType);
+                                if($affected!==false){
+                                    $newOrder=$newLDE->getOrderMembers();
+                                    if($newOrder!==[]){
                                         $broadcastEmail=$connection->email;
                                         $Time=creatDate();
-                                        $sdJson=['type'=>'broadcast','class'=>'updateLayerOrder','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>['members'=>$newOrderMemberStr]];
+                                        $sdJson=['type'=>'broadcast','class'=>'updateLayerOrder','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>['members'=>$newOrder]];
                                         $sendJson=json_encode($sdJson);
                                         foreach ($socket_worker->connections as $con) {
                                             if(property_exists($con,'email')){//避免发送给匿名用户
@@ -1379,7 +1413,7 @@ function handle_message($connection,$data){//收到客户端消息
                                         foreach($IDs as $item){
                                             if(array_key_exists('E'.$item,$theData['activeElement'])) {//存在选中
                                                 unset($theData['activeElement']['E'.$item]);//移除所有选中
-                                                array_push($psEndIds,(int)$item);
+                                                $psEndIds[]=(int)$item;
                                             }
                                         }
                                         if(count($psEndIds)!==0){//需要返回ps end elements
@@ -1415,7 +1449,7 @@ function handle_message($connection,$data){//收到客户端消息
                                                 $changeLayerId=$newLDE->removeElement($eId,$tmpId);
                                                 if($changeLayerId!==-1){//图层变动
                                                     if(!in_array($changeLayerId,$changeLayerIds)){//判断是否已经添加
-                                                        array_push($changeLayerIds,$changeLayerId);
+                                                        $changeLayerIds[]=$changeLayerId;
                                                     }
                                                 }
                                             }
@@ -1428,7 +1462,7 @@ function handle_message($connection,$data){//收到客户端消息
                                                     'members'=>$LayerData['members'],
                                                     'structure'=>$LayerData['structure']
                                                 ];
-                                                array_push($layersData,$newLayerData);
+                                                $layersData[]=$newLayerData;
                                             }
                                         }
                                         /*
@@ -1481,7 +1515,48 @@ function handle_message($connection,$data){//收到客户端消息
                                             }
                                         }
                                     }
+                                    $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'id'=>$jsonData['data']['id'],'name'=>$jsonData['data']['name']];//写入日志
+                                    createLog('renameLayer',$logData);
                                 }
+                            }
+                            case 'updateTemplateData':{
+                                $broadcastEmail=$connection->email;
+                                if(!$newQIR->arrayPropertiesCheck('data',$jsonData)){break;}
+                                if(!is_array($jsonData['data'])){break;}
+                                if(!$newQIR->arrayPropertiesCheck('template',$jsonData['data'])){break;}
+                                if(!is_array($jsonData['data']['template'])){break;}
+                                $template=$jsonData['data']['template'];
+                                $checkStatus=$newLDE->tpCheck($template);
+                                if($checkStatus!==true){break;}
+                                /*
+                                  * 更新图层数据 start
+                                  */
+                                $affected=$newLDE->updateTemplateData($template);
+                                /*
+                                  * 更新图层数据 end
+                                  */
+                                $layerData=$newLDE->getLayerMembersStructure($affected['layer']);
+                                $layerData['id']=$affected['layer'];
+                                $layerData['templateVary']=true;
+                                $sendJson0=$instruct->broadcast_updateLayerData($broadcastEmail,$layerData);
+                                $sendJson1=$instruct->broadcast_batchUpdateElement($broadcastEmail,$affected['updateElements']);
+                                $sendJson2=$instruct->broadcast_batchDeleteElement($broadcastEmail,$affected['deleteElements']);
+                                $updateCount=count($affected['updateElements']);
+                                $deleteCount=count($affected['deleteElements']['point'])+
+                                                          count($affected['deleteElements']['line'])+
+                                                          count($affected['deleteElements']['area'])+
+                                                          count($affected['deleteElements']['curve']);
+                                foreach ($socket_worker->connections as $con) {
+                                    if(property_exists($con,'email')){
+                                        if($con->email != ''){
+                                            $con->send($sendJson0);
+                                            if($updateCount!==0){$con->send($sendJson1);}
+                                            if($deleteCount!==0){$con->send($sendJson2);}
+                                        }
+                                    }
+                                }
+                                $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'tmpId'=>$template['id']];//写入日志
+                                createLog('updateTemplateData',$logData);
                             }
                             case 'forceUpdate':{//强制刷新客户端-实验性指令
                                 $Time=creatDate();
@@ -1676,7 +1751,7 @@ function handle_message($connection,$data){//收到客户端消息
             }
             case 'get_mapLayer':{//获取图层数据
                 if($activated){//必须是非匿名会话才能使用
-                    $ref=$newMDBE->getLayerData();
+                    $ref=$newLDE->getLayerData(true);
                     $sendArr=['type'=>'send_mapLayer','data'=>$ref];
                     $sendJson=json_encode($sendArr);
                     $connection->send($sendJson);
@@ -1699,8 +1774,8 @@ function handle_message($connection,$data){//收到客户端消息
                                 'userName'=>$con->userData['user_name'],
                                 'headColor'=>$con->userData['head_color'],
                             ];
-                            array_push($usersData,$userData);
-                            array_push($usersList,$nowEmail);
+                            $usersData[]=$userData;
+                            $usersList[]=$nowEmail;
                         }
                     }
                     $sendData=$instruct->send_presence($usersData);
@@ -1883,6 +1958,26 @@ function createLog($logType,$logData){
     global $theConfig;
     $time=creatDate();
     switch ($logType){
+        case 'updateTemplateData':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};tmpId为:{$logData['tmpId']};更新图层模板
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'renameLayer':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};layerId为:{$logData['id']};newName为:{$logData['name']};更新图层名称
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
         case 'connect':{
             $log=<<<ETX
 

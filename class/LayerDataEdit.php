@@ -97,13 +97,15 @@ class LayerDataEdit
           if(is_bool($value))return $value;
           if(is_int($value))return $value;
           if(is_float($value))return $value;
-          return substr($value,2);
+          if($value===null)return null;
+          return mb_substr($value,2);
     }
     function GetType($value){//获取数据的数据类型
         if(is_bool($value))return 'bool';
         if(is_int($value))return 'number';
         if(is_float($value))return 'number';
-        $tag=substr($value,0,2);
+        if($value===null)return'number';
+        $tag=mb_substr($value,0,2,'UTF-8');
         if        ($tag==='☍t'){return 'text';}
         else if($tag==='☍l'){return 'list';}
         else if($tag==='☍d'){return 'date';}
@@ -153,8 +155,8 @@ class LayerDataEdit
      * 数据转化
      * @param $value | String|Number|Boolean|Null
      * @param $type | String
-     * @return {Object,String,Number,Boolean,Null}
-     **/
+     * @return array|bool|float|int|string
+     */
     function conversion($value,$type){
         /**
          * 特殊情况处理
@@ -501,7 +503,7 @@ class LayerDataEdit
         return preg_match($reg,$value)===1;
     }
     function isAllowList($value){//检测list字符串是否正确-正确则返回true
-        $reg = '/^☍l(?!.*,.*,)(?=.*[^,]$)/';
+        $reg = '/^☍l(?!.*,,)(?=.*[^,]$)/';
         return preg_match($reg,$value)===1;
     }
     function isAllowId($id){//检测模板id是否正确-正确则返回true
@@ -582,7 +584,7 @@ class LayerDataEdit
         switch ($type){
             case 'text':{
                 if($this->typeof($value)!=='string')return false;
-                if(substr($value,0,2)!=='☍t')return false;
+                if(mb_substr($value,0,2,'UTF-8')!=='☍t')return false;
                 return mb_strlen($value,'UTF-8') <= 2002;
             }
             case 'list':{
@@ -788,12 +790,191 @@ class LayerDataEdit
         }
     }
     /**
-     * 模板检查
+     * 模板检查，若正常则返回true，否则返回其他错误的代码
      * @param $template | array
-     * @return {boolean,number}
+     * @return bool|int
      */
     function tpCheck($template){
+        if($template===null)return 500;
+        $arr=[];
+        $names=['name'];//details rule item.name
+        $len=0;
+        $count=0;
+        $cType='';//color rule type
+        $wType='';//width rule type
 
+
+
+        if(!$this->isObj($template))return 1000;
+
+
+        if(!array_key_exists('id',$template))return 2000;//A layer property check
+        if($this->typeof($template['id'])!=='string')return 2100;
+        if($template['id']==='')return 2200;
+        if(!$this->isAllowId($template['id']))return 2300;
+
+        if(!array_key_exists('name',$template))return 4000;
+        if($this->typeof($template['name'])!=='string')return 4100;
+        if($template['name']==='')return 4200;
+
+        if(!array_key_exists('creator',$template))return 6000;
+        if($this->typeof($template['creator'])!=='string')return 6100;
+        if($template['creator']==='')return 6200;
+
+        if(!array_key_exists('modify',$template))return 8000;
+        if($this->typeof($template['modify'])!=='string')return 8100;
+        if($template['modify']==='')return 8200;
+        if(!$this->isDatetime($template['modify']))return 8300;
+
+        if(!array_key_exists('locked',$template))return 10000;
+        if($this->typeof($template['locked'])!=='boolean')return 10100;
+
+        if(!array_key_exists('explain',$template))return 12000;
+        if($this->typeof($template['explain'])!=='string')return 12100;
+
+
+        if(!array_key_exists('typeRule',$template))return 14000;//typeRule property check
+        if(!$this->isObj($template['typeRule']))return 15000;
+        if(!array_key_exists('point',$template['typeRule']))return 16000;
+        if($this->typeof($template['typeRule']['point'])!=='boolean')return 17000;
+        if($template['typeRule']['point'])$count++;
+        if(!array_key_exists('line',$template['typeRule']))return 18000;
+        if($this->typeof($template['typeRule']['line'])!=='boolean')return 19000;
+        if($template['typeRule']['line'])$count++;
+        if(!array_key_exists('area',$template['typeRule']))return 20000;
+        if($this->typeof($template['typeRule']['area'])!=='boolean')return 21000;
+        if($template['typeRule']['area'])$count++;
+        if(!array_key_exists('curve',$template['typeRule']))return 22000;
+        if($this->typeof($template['typeRule']['curve'])!=='boolean')return 23000;
+        if($template['typeRule']['curve'])$count++;
+        if($count<=0){return 24000;}
+
+
+        if(!array_key_exists('detailsRule',$template))return 30000;//detailsRule property check
+        if(!is_array($template['detailsRule']))return 30100;
+        $len=count($template['detailsRule']);
+        $arr=$template['detailsRule'];
+        if($len<=0)return 30200;
+        if($len>90)return 30300;
+        if(!$this->isObj($arr[0]))return 30400;
+        if(!$this->isNameDetails($arr[0]))return 30500;
+        for($i=1;$i<$len;$i++){
+            if(!$this->isObj($arr[$i])){
+                return 31000+$i+1;
+            }else{
+                if(!array_key_exists('set',$arr[$i]))return 32000+$i+1;
+                if($this->typeof($arr[$i]['set'])!=='boolean')return 32100+$i+1;
+
+                if(!array_key_exists('name',$arr[$i]))return 33000+$i+1;
+                if($this->typeof($arr[$i]['name'])!=='string')return 33100+$i+1;
+                if($arr[$i]['name']==='')return 33200+$i+1;
+                if(mb_strlen($arr[$i]['name'],'UTF-8')>40)return 33300+$i+1;
+                if(in_array($arr[$i]['name'],$names)){return 33400+$i+1;}//检测重复属性
+                else{$names[]=$arr[$i]['name'];}
+
+                if(!array_key_exists('type',$arr[$i]))return 35000+$i+1;
+                if($this->typeof($arr[$i]['type'])!=='string')return 35100+$i+1;
+                if(!$this->isDetailsType($arr[$i]['type']))return 35200+$i+1;
+
+                if(!array_key_exists('default',$arr[$i]))return 37000+$i+1;
+                if(!$this->isAllowValueTypL($arr[$i]['type'],$arr[$i]['default']))return 37100+$i+1;
+            }
+        }
+
+
+        if(!array_key_exists('colorRule',$template))return 40000;//colorRule property check
+        if(!$this->isObj($template['colorRule']))return 40100;
+        if(!array_key_exists('basis',$template['colorRule']))return 40200;
+        if($this->typeof($template['colorRule']['basis'])!=='string')return  40300;
+        if(!array_key_exists('type',$template['colorRule']))return 40400;
+        if($this->typeof($template['colorRule']['type'])!=='string')return  40500;
+        if($template['colorRule']['basis']!==''){
+            if(!$this->isAllowBasis($template['colorRule']['basis'],$template['colorRule']['type'],$template['detailsRule']))return 40600;
+        }
+
+        if(!array_key_exists('condition',$template['colorRule']))return 40700;
+        if(!is_array($template['colorRule']['condition']))return  40800;
+        if($template['colorRule']['basis']===''){//rule(A)
+            if($template['colorRule']['type']!=='')return 40900;
+            if(count($template['colorRule']['condition'])!==0)return 41000;
+        }else{
+            if($template['colorRule']['type']==='')return 41100;
+            if(!$this->isDetailsType($template['colorRule']['type']))return 41200;
+        }
+        $len=count($template['colorRule']['condition']);
+        if($len>90)return 41300;//规则条例最多90条
+        $arr=$template['colorRule']['condition'];
+        $cType=$template['colorRule']['type'];
+        for($i=0;$i<$len;$i++){
+            if(!$this->isObj($arr[$i])){
+                return 42000+$i+1;
+            }else {
+                if(!array_key_exists('set',$arr[$i]))return 42100+$i+1;
+                if($this->typeof($arr[$i]['set'])!=='boolean')return 42200+$i+1;
+
+                if(!array_key_exists('color',$arr[$i]))return 43000+$i+1;
+                if($this->typeof($arr[$i]['color'])!=='string')return 43100+$i+1;
+                if(!$this->isColor16($arr[$i]['color']))return 43200+$i+1;
+
+                if(!array_key_exists('method',$arr[$i]))return 44000+$i+1;
+                if($this->typeof($arr[$i]['method'])!=='string')return 44100+$i+1;
+                if(!$this->isAllowMethod($cType,$arr[$i]['method']))return 44200+$i+1;
+
+                if(!array_key_exists('value',$arr[$i],))return 45000+$i+1;
+                if(!$this->isAllowValueTyp($cType,$arr[$i]['value']))return 45100+$i+1;
+                if($this->typeof($arr[$i]['value'])==='string'){//rule(E)
+                    if(mb_strlen($arr[$i]['value'],'UTF-8')>100)return 45200+$i+1;
+                }
+            }
+        }
+
+
+        if(!array_key_exists('widthRule',$template))return 50000;//widthRule property check
+        if(!$this->isObj($template['widthRule']))return 50100;
+        if(!array_key_exists('basis',$template['widthRule']))return 50200;
+        if($this->typeof($template['widthRule']['basis'])!=='string')return  50300;
+        if(!array_key_exists('type',$template['widthRule']))return 50400;
+        if($this->typeof($template['widthRule']['type'])!=='string')return  50500;
+        if($template['widthRule']['basis']!==''){
+            if(!$this->isAllowBasis($template['widthRule']['basis'],$template['widthRule']['type'],$template['detailsRule']))return 50600;
+        }
+
+        if(!array_key_exists('condition',$template['widthRule']))return 50700;
+        if(!is_array($template['widthRule']['condition']))return  50800;
+        if($template['widthRule']['basis']===''){//rule(A)
+            if($template['widthRule']['type']!=='')return 50900;
+            if(count($template['widthRule']['condition'])!==0)return 51000;
+        }else{
+            if($template['widthRule']['type']==='')return 51100;
+            if(!$this->isDetailsType($template['widthRule']['type']))return 51200;
+        }
+        $len=count($template['widthRule']['condition']);
+        if($len>90)return 51300;//规则条例最多90条
+        $arr=$template['widthRule']['condition'];
+        $wType=$template['widthRule']['type'];
+        for($i=0;$i<$len;$i++){
+            if(!$this->isObj($arr[$i])){
+                return 52000+$i+1;
+            }else {
+                if(!array_key_exists('set',$arr[$i]))return 52100+$i+1;
+                if($this->typeof($arr[$i]['set'])!=='boolean')return 52200+$i+1;
+
+                if(!array_key_exists('width',$arr[$i]))return 53000+$i+1;
+                if($this->typeof($arr[$i]['width'])!=='number')return 53100+$i+1;
+                if(!$this->isIntegerP($arr[$i]['width']))return 53200+$i+1;
+
+                if(!array_key_exists('method',$arr[$i]))return 54000+$i+1;
+                if($this->typeof($arr[$i]['method'])!=='string')return 54100+$i+1;
+                if(!$this->isAllowMethod($wType,$arr[$i]['method']))return 54200+$i+1;
+
+                if(!array_key_exists('value',$arr[$i]))return 55000+$i+1;
+                if(!$this->isAllowValueTyp($wType,$arr[$i]['value']))return 55100+$i+1;
+                if($this->typeof($arr[$i]['value'])==='string'){//rule(E)
+                    if(mb_strlen($arr[$i]['value'],'UTF-8')>100)return 55200+$i+1;
+                }
+            }
+        }
+        return true;
     }
     /**
      * tmp conversion end
@@ -828,6 +1009,173 @@ class LayerDataEdit
             if($value['structure'][0]==$name){return false;}//如果图层名称一致则返回false
         }
         return true;
+    }
+
+    /**更新图层的模板数据
+     * @param $template array
+     * @return array Affected layer and elements id Or empty array(means fail)
+     */
+    function updateTemplateData($template){
+        global $newMDBE;
+        $ref=[
+            'layer'=>null,
+            'deleteElements'=>[
+                'point'=>[
+                    //14
+                ],
+                'line'=>[
+                    //56
+                ],
+                'area'=>[
+                    //78
+                ],
+                'curve'=>[
+                    //12
+                ]
+            ],
+            'updateElements'=>[
+                //[
+                //  id,
+                //  type,
+                //  details,//json encode -> base64 encode
+                //] ,
+                //[......]
+            ]
+        ];
+        $layerId=null;
+        $tmpId=null;
+        $oldTemplate=null;
+        $hasChange=false;
+        $varyName=false;
+        $varyLocked=false;
+        $varyExplain=false;
+        $varyTypeRule=false;
+        $varyDetailsRule=false;
+        $varyColorRule=false;
+        $varyWidthRule=false;
+        if(!array_key_exists($template['id'],$this->templateLink)){return [];}
+        $tmpId=$template['id'];
+        $layerId=$this->templateLink[$tmpId]['layerId'];
+        $oldTemplate=$this->layerData[$layerId]['structure'][1]['template'];
+        if($template['name']!==$oldTemplate['name']){$varyName=true;$hasChange=true;}
+        if($template['locked']!==$oldTemplate['locked']){$varyLocked=true;$hasChange=true;}
+        if($template['explain']!==$oldTemplate['explain']){$varyExplain=true;$hasChange=true;}
+        if($template['typeRule']!==$oldTemplate['typeRule']){$varyTypeRule=true;$hasChange=true;}
+        if($template['detailsRule']!==$oldTemplate['detailsRule']){$varyDetailsRule=true;$hasChange=true;}
+        if($template['colorRule']!==$oldTemplate['colorRule']){$varyColorRule=true;$hasChange=true;}
+        if($template['widthRule']!==$oldTemplate['widthRule']){$varyWidthRule=true;$hasChange=true;}
+        if($hasChange){//更新图层的模板数据
+            if($varyName){$this->layerData[$layerId]['structure'][1]['template']['name']=$template['name'];}
+            if($varyLocked){$this->layerData[$layerId]['structure'][1]['template']['locked']=$template['locked'];}
+            if($varyExplain){$this->layerData[$layerId]['structure'][1]['template']['explain']=$template['explain'];}
+            if($varyTypeRule){$this->layerData[$layerId]['structure'][1]['template']['typeRule']=$template['typeRule'];}
+            if($varyDetailsRule){$this->layerData[$layerId]['structure'][1]['template']['detailsRule']=$template['detailsRule'];}
+            if($varyColorRule){$this->layerData[$layerId]['structure'][1]['template']['colorRule']=$template['colorRule'];}
+            if($varyWidthRule){$this->layerData[$layerId]['structure'][1]['template']['widthRule']=$template['widthRule'];}
+            $ref['layer']=$layerId;
+            $this->layerData[$layerId]['hasChange']=true;//修改状态
+            $this->updateCache();
+        }
+        if($varyTypeRule){//应用新的类型规则
+            $typeNumString=[
+                1=>'point',
+                2=>'line',
+                3=>'area',
+                4=>'curve'
+            ];
+            $allow=[
+                1=>$template['typeRule']['point'],
+                2=>$template['typeRule']['line'],
+                3=>$template['typeRule']['area'],
+                4=>$template['typeRule']['curve']
+            ];
+            $changed=false;
+            foreach($this->layerData[$layerId]['members'] as $eid=>$type){
+                if($type==0){continue;}
+                if($allow[$type]===false){//如果不允许则删除
+                    unset($this->layerData[$layerId]['members'][$eid]);//删除成员
+                    $KY=array_search($eid,$this->layerData[$layerId]['structure']);
+                    unset($this->layerData[$layerId]['structure'][$KY]);//删除引用
+                    $ref['deleteElements'][$typeNumString[$type]][]=$eid;
+                    $changed=true;
+                }
+            }
+            if($changed){
+                $this->layerData[$layerId]['structure']=array_values($this->layerData[$layerId]['structure']);//重新索引数组
+                $deleteList=array_merge($ref['deleteElements']['point'],$ref['deleteElements']['line'],$ref['deleteElements']['area'],$ref['deleteElements']['curve']);
+                $newMDBE->updateElementsPhase($deleteList,2);//删除多余的成员
+            }
+        }
+        if($varyDetailsRule){//应用新的属性规则
+            $typeNumString=[
+                1=>'point',
+                2=>'line',
+                3=>'area',
+                4=>'curve'
+            ];
+            foreach($this->layerData[$layerId]['members'] as $eid=>$eType){
+                if($eType==0){continue;}
+                /*
+                  * 元素属性更新 start
+                  */
+                $elementData=$newMDBE->getElementById($eid);
+                if($elementData===false){continue;}//跳过查找不到的元素
+                $detailsData=json_decode(base64_decode($elementData['details']),true);
+                if($detailsData===null){continue;}//跳过解析失败的元素
+                $newDetails=$this->detailsTransform($detailsData,$template['detailsRule']);
+                $encodeString=base64_encode(json_encode($newDetails,true));
+                if($newDetails!==false){//if has change
+                    $updateStatus=$newMDBE->updateElementData(
+                        [
+                            'id'=>$eid,
+                            'details'=>$encodeString
+                        ]
+                    );
+                    if($updateStatus){
+                        $ref['updateElements'][]=[
+                            'id'=>$eid,
+                            'type'=>$typeNumString[$eType],
+                            'details'=>$encodeString
+                        ];
+                    }
+                }
+                /*
+                 * 元素属性更新 end
+                 */
+            }
+        }
+        return $ref;
+    }
+
+    /**更新图层顺序
+     * @param $passive int
+     * @param $active int
+     * @param $type string
+     * @return bool
+     */
+    function updateLayerOrder($passive,$active,$type){
+       $passive=(int)$passive;
+       $active=(int)$active;
+        foreach($this->layerData as $index=>$item){
+            if($item['type']==='order'){
+                $indexA=array_search($active,$item['members']);
+                $indexB=array_search($passive,$item['members']);
+                if($indexA===false || $indexB===false)return false;
+                array_splice($item['members'],$indexA,1);//删除A
+                $indexB=array_search($passive,$item['members']);//重新搜索
+                if($type==='down')$indexB++;
+                array_splice($item['members'],$indexB,0,$active);//插入A
+                if($item['members']!==$this->layerData[$index]['members']){
+                    $this->layerData[$index]['members']=$item['members'];
+                    $this->layerData[$index]['hasChange']=true;//修改状态
+                    $this->updateCache();
+                    return true;
+                }
+                else{
+                    return false;
+                }
+            }
+        }
     }
 
     /**更新缓存
@@ -1003,22 +1351,31 @@ class LayerDataEdit
     /**依据属性规则转化元素的属性
      * @param $details array
      * @param $detailsRule array
-     * @return array | bool 转化失败或无变化则返回false否则返回新的属性
+     * @return array | bool 转化失败或无变化则返回false否则返回新的属性集合
      */
     function detailsTransform($details,$detailsRule){
-        $ref=[];
-        $attrListR=[];//规则中允许的属性
-        $attrListS=[];//源属性中的属性
+        /**
+         *  $details:            [ [key=>? , value=>?]  ...   ]
+         *  $detailsRule:    [ [set=>? , name=>? , type=>? , default=>? ]  ... ]
+         **/
+        if(empty($details) || empty($detailsRule)){return false;}
+        $originalKeys=array_column($details,'key');//源属性中的属性
+        $allowKeys=[];//规则中允许的属性
+        $allowRules=[];//规则
         $hasRemove=false;
         $hasAppend=false;
-        foreach($detailsRule as $rule){//获取属性规则允许的属性列表
-            array_push($attrListR,$rule['name']);
+        $hasReorder=false;
+        $hasConversion=false;
+        foreach($detailsRule as $value){
+            $key=$value['name'];
+            $allowKeys[]=$key;
+            $allowRules[$key]=$value;
         }
         /*
          * 删除规则中不存在的属性
          */
         foreach($details as $index=>$detail){
-            if(!in_array($detail['key'],$attrListR)){
+            if(!in_array($detail['key'],$allowKeys)){
                 unset($details[$index]);
                 $hasRemove=true;
             }
@@ -1029,47 +1386,95 @@ class LayerDataEdit
         /*
          * 增加源属性未拥有的属性
          */
-        foreach($details as $detail){//获取源属性拥有的属性列表
-            array_push($attrListS,$detail['key']);
-        }
         foreach($detailsRule as $rule){
-            if(!in_array($rule['name'],$attrListS)){
+            if(!in_array($rule['name'],$originalKeys)){
                 $newDetail=[
                     'key'=>$rule['name'],
                     'value'=>$rule['default']
                 ];
-                array_push($details,$newDetail);
+                $details[]=$newDetail;
                 $hasAppend=true;
             }
         }
         /*
-         *  $details:            [ [key=>value]  ...   ]
-         *  $detailsRule:    [ [set , name , type , default ]  ... ]
+         * 属性的顺序调整
          */
+        $detailOrder=array_keys($allowRules);//获取新的属性顺序
+        $oldOrder=array_column($details,'key');
+        if($detailOrder!==$oldOrder){//存在属性顺序的变化
+            $tempDetails=[];
+            foreach($detailOrder as $key){
+                foreach($details as $index=>$detail){
+                    if($detail['key']===$key){
+                        $tempDetails[]=$detail;//放到临时属性中
+                        array_splice($details,$index,1);//删除已排序的
+                    }
+                }
+            }
+            $details=$tempDetails;
+            $hasReorder=true;
+        }
         /*
          * 属性值类型转化
          */
-        foreach($details as $detail){
+        foreach($details as $index=>$detail){//$detail key=>?,value=>?
             $newType=null;
             $newValue=null;
-            foreach($detailsRule as $rule){
-                if($rule['name']===$detail['key']){
-                    $newType=$rule['type'];
+            $oldValue=$detail['value'];
+            $newType=$allowRules[$detail['key']]['type'];
+            if($newType===null){continue;}
+            if($newType==='list'){//list的转化需要单独进行
+                $newDefault=$allowRules[$detail['key']]['default'];
+                $oldType=$this->GetType($oldValue);
+                if($oldType==='list' || $oldType==='text'){//需要单独转换
+                    if(mb_strlen($newDefault,'UTF-8')>2){
+                        $newList=explode(',',mb_substr($newDefault,2,null,'UTF-8'));//解析$newDefault为数组$newList
+                        $oldList=explode(',',mb_substr($oldValue,2,null,'UTF-8'));//解析$oldValue为数组$oldList
+                        $searchIndex=array_search($oldList[0],$newList);
+                        if($searchIndex!==false){
+                            array_splice($newList,$searchIndex,1);//删除源选项
+                            array_unshift($newList,$oldList[0]);//在顶部插入源选项
+                            $tempValue=implode(',',$newList);//合并为字符串并用','隔开
+                            $tempValue=$this->List_($tempValue);//转换为List字符类型
+                            $details[$index]['value']=$tempValue;
+                            $hasConversion=true;
+                        }
+                        else{//置顶选项已移除则给定默认值
+                            $details[$index]['value']=$newDefault;
+                            $hasConversion=true;
+                        }
+                    }
+                    else{//空的默认值给定默认值
+                        $details[$index]['value']=$newDefault;
+                        $hasConversion=true;
+                    }
+                }
+                else{//其他类型不需要转换给定默认值
+                    $details[$index]['value']=$newDefault;
+                    $hasConversion=true;
                 }
             }
-            if($newType!==null){
-                $newValue=$this->conversion($detail['value'],$newType);
+            else{//非list属性的转换
+                $newValue=$this->conversion($oldValue,$newType);
+                if($oldValue!==$newValue){
+                    $details[$index]['value']=$newValue;
+                    $hasConversion=true;
+                }
             }
         }
-        return $ref;
+        if($hasRemove || $hasAppend || $hasReorder || $hasConversion){
+            return $details;
+        }else{
+            return false;
+        }
     }
 
     /**调整数组排序
-     * @param $array
-     * @param $elementA
-     * @param $elementB
-     * @param $method
-     * @return array | bool 如果调整失败或者无变化则返回false
+     * @param $array array structure
+     * @param $elementA int element id
+     * @param $elementB int passive element id
+     * @param $method string up or down
+     * @return array | bool 如果调整失败或者无变化则返回false否则返回新的结构
      */
     function arrayReorder($array,$elementA,$elementB,$method){
         $indexA=array_search($elementA,$array);// 查找 $elementA 和 $elementB 的索引
@@ -1110,18 +1515,20 @@ class LayerDataEdit
     }
 
     /**调整元素排序
-     * @param $elementA
-     * @param $elementB
-     * @param $templateA
-     * @param $templateB
-     * @param $method
-     * @return array Affected layers id
+     * @param int $elementA
+     * @param int $elementB
+     * @param string $templateA
+     * @param string $templateB
+     * @param string $method
+     * @return array Affected layers id and Affected element id || Empty array
      */
     function adjustElementOrder($elementA,$elementB,$templateA,$templateB,$method){
         global $newMDBE;
+        $elementA=(int)$elementA;
+        $elementB=(int)$elementB;
         $ref=[
             'layers'=>[],//变动的图层id
-            'elements'=>[]//变动的元素id
+            'element'=>-1//变动的元素id
         ];
         $layerA=null;
         $layerB=null;
@@ -1137,32 +1544,74 @@ class LayerDataEdit
             if($newStructure!==false){
                 $this->layerData[$layerA]['structure']=$newStructure;
                 $this->layerData[$layerA]['hasChange']=true;//修改状态
-                array_push($ref['layers'],$layerA);//变动图层
+                $this->updateCache();
+                $ref['layers'][]=$layerA;//变动图层
             }
-        }else{//跨组进行调整顺序
-            //1.需要考虑B组的模板（允许的类型（前端先设置阻碍后端二次检查）、属性规则（后端进行变更））
+        }
+        else{//跨组进行调整顺序
+            /*
+              * a属性转化成b属性 start
+              */
+            $bLayerId=null;//int
+            $bTemplateData=null;//array
+            $aElementData=null;//array
+            $aDetails=null;//array
+            $aType=null;//array
+            if(array_key_exists($templateB,$this->templateLink)){
+                $bLayerId=$this->templateLink[$templateB]['layerId'];
+                $bTemplateData=$this->layerData[$bLayerId]['structure'][1]['template'];
+            }
+            else{
+                return [];
+            }
+            $aElementData=$newMDBE->getElementById($elementA);
+            if($aElementData===false){return [];}//查询数据失败返回空
+            $aType=$aElementData['type'];
+            $aDetails=json_decode(base64_decode($aElementData['details']),true);
+            $aCustom=json_decode(base64_decode($aElementData['custom']),true);
+            if($aDetails===null){return [];}//解析失败返回空
+            if($aCustom===null){return [];}//解析失败返回空
+            if($bTemplateData['typeRule'][$aType]!==true){return [];}//b图层不允许a元素类型加入则返回空
+            $newDetails=$this->detailsTransform($aDetails,$bTemplateData['detailsRule']);
+            if($newDetails!==false){//if has change
+                $aCustom['tmpId']=$templateB;//change tmp id
+                $updateStatus=$newMDBE->updateElementData(
+                    [
+                        'id'=>$elementA,
+                        'details'=>base64_encode(json_encode($newDetails,true)),
+                        'custom'=>base64_encode(json_encode($aCustom,true))
+                    ]
+                );
+                if($updateStatus){
+                    $ref['element']=$elementA;
+                }
+            }
+            /*
+             * a属性转化成b属性 end
+             */
             if($method==='join'){//A element leave the A layer then A element join to B layer on the top
-                $bLayerId=null;//int
-                $bTemplateData=null;//array
-                $aElementData=null;//array
-                $aDetails=null;//array
-                $aType=null;//array
-                if(array_key_exists($templateB,$this->templateLink)){
-                    $bLayerId=$this->templateLink[$templateB]['layerId'];
-                    $bTemplateData=$this->layerData[$bLayerId]['structure'][1]['template'];
-                }
-                $aElementData=$newMDBE->getElementById($elementA);
-                if($aElementData===false){return [];}//查询数据失败返回空
-                $aDetails=json_decode(base64_decode($aElementData['details']));
-                if($aDetails===null){return [];}//解析失败返回空
-                $aType=$aElementData['type'];
-                if($bTemplateData['typeRule'][$aType]!==true){
-                    return [];//b图层不允许a元素类型加入则返回空
-                }
-                //a属性转化成b属性
-                $newDetails=$this->detailsTransform($aDetails,$bTemplateData['detailsRule']);
-            }else{
-                echo "\n其他方式\n";
+                /*
+                 * 图层操作 start
+                 */
+                $affectedId=$this->removeElement($elementA,$templateA);//a元素移除出a图层
+                if($affectedId!==-1){$ref['layers'][]=$affectedId;}
+                $affectedId=$this->appendElement($elementA,$templateB,$aType);//a元素添加至b图层
+                if($affectedId!==-1){$ref['layers'][]=$affectedId;}
+                /*
+                 * 图层操作 end
+                 */
+            }
+            elseif($method==='up' || $method==='down'){
+                /*
+                 * 图层操作 start
+                 */
+                $affectedId=$this->removeElement($elementA,$templateA);//a元素移除出a图层
+                if($affectedId!==-1){$ref['layers'][]=$affectedId;}
+                $affectedId=$this->insertElement($elementA,$templateB,$aType,$elementB,$method);//a元素添加至b图层
+                if($affectedId!==-1){$ref['layers'][]=$affectedId;}
+                /*
+                 * 图层操作 end
+                 */
             }
         }
         return $ref;
@@ -1178,6 +1627,30 @@ class LayerDataEdit
             }
         }
         return [];
+    }
+
+    /**获取图层数据
+     * @param $encode bool default false
+     * @return array
+     */
+    function getLayerData($encode=false){
+        $ref=[];
+        foreach($this->layerData as $data){
+            if($encode===true){
+                if($data['type']==='order'){//only order
+                    $data['members']=json_encode($data['members'],true);//encode
+                    $ref[]=$data;
+                }else{
+                    $data['members']=base64_encode(json_encode($data['members'],true));//encode
+                    $data['structure']=base64_encode(json_encode($data['structure'],true));
+                    $ref[]=$data;
+                }
+            }
+            else{
+                $ref[]=$data;
+            }
+        }
+        return $ref;
     }
 
     /**获取一个图层的成员和结构数据
@@ -1235,7 +1708,7 @@ class LayerDataEdit
         foreach($this->layerData as $key=>$value){
             if($value['type']==='order'){
                 if(!in_array($id,$this->layerData[$key]['members'])){//不存在则加入
-                    array_push($this->layerData[$key]['members'],$id);
+                    $this->layerData[$key]['members'][]=$id;
                     $this->layerData[$key]['hasChange']=true;//修改状态
                     $this->updateCache();
                 }
@@ -1306,11 +1779,42 @@ WHERE id=" . $id;
                 }
             }else{
                 if(count($route)===0){//初始状态将根图层名称加入路由
-                    array_push($route,$structure[0]);
+                    $route[]=$structure[0];
                 }
             }
         }
         return $links;
+    }
+
+    /**插入一个新的元素，并且指定要插入到什么位置
+     * @param $idA int insert element id
+     * @param $tmpId string template id
+     * @param $type string element type
+     * @param $idB int passive element id
+     * @param $method string up or down
+     * @return int layer id or -1
+     */
+    function insertElement($idA,$tmpId,$type,$idB,$method){
+        if(array_key_exists($tmpId,$this->templateLink)){
+            $layerId=$this->templateLink[$tmpId]['layerId'];
+            if(!array_key_exists($idA,$this->layerData[$layerId]['members'])){//避免重复添加相同成员
+                $this->layerData[$layerId]['members'][$idA]=$this->typeNumber[$type];//图层成员添加
+                /*
+                 * 图层结构调整 start
+                 */
+                $indexB=array_search($idB,$this->layerData[$layerId]['structure']);//查找$elementB的索引
+                if($indexB===false){return -1;}
+                if($method==='down'){$indexB++;}
+                array_splice($this->layerData[$layerId]['structure'],$indexB,0,$idA);
+                /*
+                 * 图层结构调整 end
+                 */
+                $this->layerData[$layerId]['hasChange']=true;//修改状态
+                $this->updateCache();
+                return $layerId;
+            }
+        }
+        return -1;
     }
 
     /**增加一个图层的元素
@@ -1324,7 +1828,7 @@ WHERE id=" . $id;
             $layerId=$this->templateLink[$tmpId]['layerId'];
             if(!array_key_exists($id,$this->layerData[$layerId]['members'])){//避免重复添加相同成员
                 $this->layerData[$layerId]['members'][$id]=$this->typeNumber[$type];//图层成员添加
-                array_push($this->layerData[$layerId]['structure'],(int)$id);//图层结构添加
+                $this->layerData[$layerId]['structure'][]=(int)$id;//图层结构添加
                 $this->layerData[$layerId]['hasChange']=true;//修改状态
                 $this->updateCache();
                 return $layerId;
@@ -1498,5 +2002,11 @@ WHERE id=" . $id;
     }
     function Number($value){
         if(is_numeric($value)){return $value+0;}else{return 0;}
+    }
+    function isObj($value){
+        if(!is_array($value)){return false;}
+        $keys=array_keys($value);
+        foreach($keys as $it=>$ke){if($ke!==$it){return true;}}
+        return false;
     }
 }

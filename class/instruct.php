@@ -147,12 +147,12 @@ class instruct
     }
     /**广播指令**/
     //广播指令-更新多个图层数据
-    function broadcast_batchUpdateLayerData($layerDataArray){
+    function broadcast_batchUpdateLayerData($conveyor,$layerDataArray){
         if(!is_array($layerDataArray)){
             return $this->turn([
                 'type'=>'broadcast',
                 'class'=>'batchUpdateLayerData',
-                'conveyor'=>'',
+                'conveyor'=>$conveyor,
                 'time'=>$this->creatDate(),
                 'data'=>[]
             ]);
@@ -188,6 +188,45 @@ class instruct
             'type'=>'broadcast',
             'class'=>'logIn',
             'data'=>$userData
+        ]);
+    }
+    //广播指令-批量更新元素
+    function broadcast_batchUpdateElement($conveyor,$elementArray){
+        if(!is_array($elementArray)){
+            return $this->turn([
+                'type'=>'broadcast',
+                'class'=>'batchUpdateElement',
+                'conveyor'=>$conveyor,
+                'time'=>$this->creatDate(),
+                'data'=>[]
+            ]);
+        }
+        return $this->turn([
+            'type'=>'broadcast',
+            'class'=>'batchUpdateElement',
+            'conveyor'=>'',
+            'time'=>$this->creatDate(),
+            'data'=>$elementArray
+        ]);
+    }
+    //批量删除元素
+    function broadcast_batchDeleteElement($conveyor,$deletes){
+        return $this->turn([
+            'type'=>'broadcast',
+            'class'=>'batchDeleteElement',
+            'conveyor'=>$conveyor,
+            'time'=>$this->creatDate(),
+            'data'=>$deletes
+        ]);
+    }
+    //更新图层数据
+    function broadcast_updateLayerData($conveyor,$layerData){
+        return $this->turn([
+            'type'=>'broadcast',
+            'class'=>'updateLayerData',
+            'conveyor'=>$conveyor,
+            'time'=>$this->creatDate(),
+            'data'=>$layerData
         ]);
     }
 }
