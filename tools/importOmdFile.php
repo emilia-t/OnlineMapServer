@@ -22,6 +22,7 @@ $layerLength=count($omdData['layerData']);
 $pointLength=count($omdData['mapData']['points']);
 $lineLength=count($omdData['mapData']['lines']);
 $areaLength=count($omdData['mapData']['areas']);
+$curveLength=count($omdData['mapData']['curves']);
 /**
  * 2.添加地图数据-逐条
  */
@@ -31,9 +32,11 @@ for($i=0;$i<$pointLength;$i++){
 for($j=0;$j<$lineLength;$j++){
     insertElement($omdData['mapData']['lines'][$j]);
 }
-
 for($k=0;$k<$areaLength;$k++){
     insertElement($omdData['mapData']['areas'][$k]);
+}
+for($m=0;$m<$curveLength;$m++){
+    insertElement($omdData['mapData']['curves'][$m]);
 }
 /**
  * 3.添加图层数据-逐条
@@ -78,10 +81,10 @@ function insertElement($element){
     $phase=$element['phase'];
     $width=$element['width'];
     $details=btoa(jsonStringify($element['details']));
-    $custom=null;
+    $custom=btoa(jsonStringify($element['custom']));
     $sql="INSERT INTO map_{$MapSerial}_data (
           id,type,point,points,color,phase,width,details,custom) VALUES (
-          $id,'$type','$point','$points','$color',$phase,$width,'$details',NULL
+          $id,'$type','$point','$points','$color',$phase,$width,'$details','$custom'
 )";
     $Mysqli->query($sql);
 }

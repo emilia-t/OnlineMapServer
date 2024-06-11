@@ -1,4 +1,5 @@
 <?php
+#Version 0.5
 ################Script initial execution################
 require 'config/Server_config.php';
 require 'Aconst.php';
@@ -178,7 +179,7 @@ function checkPublicAccount(){
         return true;
     }
 }
-echo "OnlineMapServer\n";
+echo "OnlineMapServer Version 0.5\n";
 echo "(c) Minxi Wan。保留所有权利。\n";
 echo "Please wait ! the service will start in 5 seconds.\n";
 usleep(5000000);
@@ -710,6 +711,123 @@ function handle_message($connection,$data){//收到客户端消息
                                     sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);//返回成功指令顺序在 point 后
                                     $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
                                     createLog('userAddLine',$logData);
+                                }else{
+                                    sendError('upload',$jsonData['data'],'database upload fail',$connection);
+                                }
+                                break;
+                            }
+                            case 'curve':{//新增曲线
+                                $tmpId='unknown';
+                                $basicStructure=['id'=>'temp','type'=>'curve','points'=>[],'point'=>null,'color'=>'','phase'=>1,'width'=>2,'child_relations'=>[],'father_relation'=>'','child_nodes'=>[],'father_node'=>'','details'=>null,'custom'=>null];//0.构建默认数据内容
+                                if(!$newQIR->arrayPropertiesCheck('data',$jsonData)){break;}//1.检查是否包含data键名
+                                if(!$newQIR->getDataType($jsonData['data'])=='array'){break;}//2.检查data是否为数组
+                                if(!$newQIR->arrayPropertiesCheck('point',$jsonData['data'])){break;}//3.检查是否包含point属性
+                                if(!$newQIR->arrayPropertiesCheck('x',$jsonData['data']['point']) OR !$newQIR->arrayPropertiesCheck('y',$jsonData['data']['point'])){break;}//4.检查point是否包含xy属性
+                                if(!$newQIR->digitalCheck($jsonData['data']['point']['x']) OR !$newQIR->digitalCheck($jsonData['data']['point']['y'])){break;}//5.检查xy值是否为数字
+                                if(!$newQIR->arrayPropertiesCheck('points',$jsonData['data'])){break;}//6.1检查是否存在points属性
+                                if(!$newQIR->getDataType($jsonData['data']['points'])=='array'){break;}//6.2检查points是否是一个数组
+                                $pointsLock=false;
+                                for($i=0;$i<count($jsonData['data']['points']);$i++){//6.3循环检查内部
+                                    if(!$newQIR->arrayPropertiesCheck('x',$jsonData['data']['points'][$i])){$pointsLock=true;break;}//6.3.1检查是否存在xy
+                                    if(!$newQIR->arrayPropertiesCheck('y',$jsonData['data']['points'][$i])){$pointsLock=true;break;}
+                                    if(!$newQIR->digitalCheck($jsonData['data']['points'][$i]['x'])){$pointsLock=true;break;}//6.3.2检查xy是否为数字
+                                    if(!$newQIR->digitalCheck($jsonData['data']['points'][$i]['y'])){$pointsLock=true;break;}
+                                }
+                                if($pointsLock){
+                                    break;
+                                }
+                                if($newQIR->arrayPropertiesCheck('color',$jsonData['data'])){//7.检查color是否存在，存在则检查，不存在则设置默认值
+                                    if($newQIR->color16Check($jsonData['data']['color'])){//7.1检查颜色格式是否正确
+                                        $basicStructure['color']=$jsonData['data']['color'];
+                                    }else{
+                                        $basicStructure['color']='ffffff';
+                                    }
+                                }
+                                else{
+                                    $basicStructure['color']='ffffff';
+                                }
+                                if($newQIR->arrayPropertiesCheck('width',$jsonData['data'])){//8.检查是否存在width，并检查是否为数字
+                                    if($newQIR->digitalCheck($jsonData['data']['width'])){//8.1检查是否是数字，不是数字则改写为默认值
+                                        $basicStructure['width']=$jsonData['data']['width'];
+                                    }else{
+                                        $basicStructure['width']=2;
+                                    }
+                                }
+                                else{
+                                    $basicStructure['width']=2;
+                                }
+                                if($newQIR->arrayPropertiesCheck('details',$jsonData['data'])){//9.1检查details是否存在
+                                    if($newQIR->getDataType($jsonData['data']['details'])=='array'){//9.2检查details数据结构是否为数组
+                                        foreach ($jsonData['data']['details'] as $value){
+                                            if ($newQIR->arrayPropertiesCheck('key',$value) AND $newQIR->arrayPropertiesCheck('value',$value)){//9.3检查该项键值对是否存在
+                                                if(!$newQIR->commonKeyNameCheck($value['key']) OR !$newQIR->illegalCharacterCheck($value['value'])){//9.4检查键名和键值是否正常
+                                                    break;
+                                                }
+                                            }else{
+                                                break;
+                                            }
+                                        }
+                                    }else{
+                                        $basicStructure['details']='';
+                                    }
+                                }
+                                else{
+                                    $basicStructure['details']='';
+                                }
+                                if($newQIR->arrayPropertiesCheck('custom',$jsonData['data'])){//custom的模板id提取
+                                    if(gettype($jsonData['data']['custom']==='array')){
+                                        if($newQIR->arrayPropertiesCheck('tmpId',$jsonData['data']['custom'])){
+                                            if(gettype($jsonData['data']['custom']['tmpId']==='string')){
+                                                $tmpId=$jsonData['data']['custom']['tmpId'];
+                                            }
+                                        }
+                                    }
+                                }
+                                /*
+                                  *封装
+                                  */
+                                $basicStructure['point']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['point']));//归档加密
+                                $basicStructure['points']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['points']));
+                                $basicStructure['details']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['details']));
+                                $basicStructure['custom']=$newJDT->btoa($newJDT->jsonPack($jsonData['data']['custom']));
+                                /*全部检查完毕
+                                  *上传至数据库
+                                  */
+                                $uploadId=$newMDBE->uploadElementData($basicStructure,'curve');
+                                if($uploadId!==-1){//更新成功后写入日志文件并广播给其他用户
+                                    $newId=$uploadId;
+                                    $basicStructure['id']=$newId;//更改basic id
+                                    $broadcastEmail=$connection->email;//发送广播的email
+                                    $dateTime=creatDate();//时间
+                                    $appendLayerId=$newLDE->appendElement($newId,$tmpId,'curve');
+                                    $newLayerData=null;//['id'=>,'members'=>,'structure'=>]
+                                    if($appendLayerId!==-1){
+                                        $LayerData=$newLDE->getLayerMembersStructure($appendLayerId);
+                                        if($LayerData!==false){
+                                            $newLayerData=[
+                                                'id'=>(int)$appendLayerId,
+                                                'members'=>$LayerData['members'],
+                                                'structure'=>$LayerData['structure']
+                                            ];
+                                        }
+                                    }
+                                    $sdJson1=['type'=>'broadcast','class'=>'curve','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$basicStructure];
+                                    $sendJson1=json_encode($sdJson1);//返回数据
+                                    $sdJson2=['type'=>'broadcast','class'=>'updateLayerData','conveyor'=>$broadcastEmail,'time'=>$dateTime,'data'=>$newLayerData];//组合
+                                    $sendJson2=json_encode($sdJson2);//返回数据
+                                    foreach ($socket_worker->connections as $con){
+                                        if(property_exists($con,'email')){//避免发送给匿名用户
+                                            if($con->email != ''){
+                                                $con->send($sendJson1);//指令的发送顺序不能乱
+                                                if($newLayerData!==null){
+                                                    $con->send($sendJson2);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    sendCorrect('upload',['vid'=>$jsonData['data']['id'],'rid'=>$newId],$connection);//返回成功指令顺序在 point 后
+                                    $logData=['connectionId'=>$connection->id,'broadcastEmail'=>$broadcastEmail,'addId'=>$newId];
+                                    createLog('userAddCurve',$logData);
                                 }else{
                                     sendError('upload',$jsonData['data'],'database upload fail',$connection);
                                 }
@@ -2052,6 +2170,16 @@ ETX;
             $log=<<<ETX
 
 {$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};新增一条线:{$logData['addId']}
+
+ETX;
+            echo $log;
+            fwrite($theConfig['logFile'],$log);
+            break;
+        }
+        case 'userAddCurve':{
+            $log=<<<ETX
+
+{$time}--连接Id为:{$logData['connectionId']};Account为:{$logData['broadcastEmail']};新增一条曲线:{$logData['addId']}
 
 ETX;
             echo $log;
