@@ -56,14 +56,14 @@ function insertLayer($layer){
     if($type==='group'){
         $members=btoa(jsonStringify($layer['members']));
         $structure=btoa(jsonStringify($layer['structure']));
-        $sql="INSERT INTO map_{$MapSerial}_layer (
+        $sql="REPLACE INTO map_{$MapSerial}_layer (
           id,type,members,structure,phase) VALUES (
           $id,'$type','$members','$structure',$phase
 )";
         $Mysqli->query($sql);
     }elseif ($type==='order'){
         $members=jsonStringify($layer['members']);
-        $sql="INSERT INTO map_{$MapSerial}_layer (
+        $sql="REPLACE INTO map_{$MapSerial}_layer (
           id,type,members,structure,phase) VALUES (
           $id,'$type','$members','',$phase
 )";
@@ -82,7 +82,7 @@ function insertElement($element){
     $width=$element['width'];
     $details=btoa(jsonStringify($element['details']));
     $custom=btoa(jsonStringify($element['custom']));
-    $sql="INSERT INTO map_{$MapSerial}_data (
+    $sql="REPLACE INTO map_{$MapSerial}_data (
           id,type,point,points,color,phase,width,details,custom) VALUES (
           $id,'$type','$point','$points','$color',$phase,$width,'$details','$custom'
 )";
