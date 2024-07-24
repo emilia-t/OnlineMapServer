@@ -106,6 +106,19 @@ class MapDataBaseEdit
             echo $log;
         }
     }
+    /**用于防止Mysqli断连
+     * @return void
+     */
+    function ensureMysqliConnection(){
+        global $mysql_public_server_address, $mysql_public_user, $mysql_public_password, $mysql_public_db_name;
+        // 尝试执行一个简单的查询来检测连接是否有效
+        if ($this->linkMysqli === null || !$this->linkMysqli->query('SELECT 1')) {
+            if ($this->linkMysqli !== null) {
+                $this->linkMysqli->close();
+            }
+            $this->linkMysqli = new mysqli($mysql_public_server_address,$mysql_public_user,$mysql_public_password,$mysql_public_db_name);
+        }
+    }
     /**检测图层数据是否存在order
      * @return void
      */

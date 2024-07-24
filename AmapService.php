@@ -2389,6 +2389,7 @@ $socket_worker->onWorkerStart=function($socket_worker){
             global $newMDBE;
             //echo "\n[自动任务]正在心跳数据库...\n";
             $newMDBE->pdoHeartbeat();
+            $newMDBE->ensureMysqliConnection();
         });
 };
 startSetting();
