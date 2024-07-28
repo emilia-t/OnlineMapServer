@@ -3,7 +3,7 @@
 </div>
 
 <div align="center">
-<h1>在线地图服务 onlineMapServer</h1>
+<h1>在线地图服务 OnlineMapServer</h1>
 <p><em>实时在线与您的同伴编辑地图Real time online editing of maps with your companions</em></p>
 </div>
 
