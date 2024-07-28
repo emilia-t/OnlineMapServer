@@ -15,7 +15,7 @@ This project is open source for learning purposes only and cannot be used for an
 
 <div align="center">
 
-[![GitHub forks](https://img.shields.io/github/forks/emilia-t/online-map-editor.svg?abel=Fork&style=for-the-bright)](https://github.com/emilia-t/online-map-editor)
+[![GitHub forks](https://img.shields.io/github/forks/emilia-t/OnlineMapServer.svg?abel=Fork&style=for-the-bright)](https://github.com/emilia-t/OnlineMapServer)
 [![Workerman](https://img.shields.io/badge/Workerman-4.0.19-brightgreen)]()
 [![PHP](https://img.shields.io/badge/PHP-7.3.31-brightgreen)]()
 [![LICENSE](https://img.shields.io/badge/LICENSE-MIT-brightgreen)](https://github.com/emilia-t/online-map-editor/blob/main/LICENSE)
@@ -29,7 +29,7 @@ This project is open source for learning purposes only and cannot be used for an
 
 A backend PHP program for creating online collaborative editing map SVG images
 
-若要您已有创建好的在线地图服务器，请前往此页并点击右上角 "+" 连接您的服务器 https://map.atsw.top
+若您已有创建好的在线地图服务器，请前往此页并点击右上角 "+" 连接您的服务器 https://map.atsw.top
 
 If you already have a created online map server, please go to this page https://map.atsw.top, then click the "+" in the upper right corner to connect.
 
@@ -90,9 +90,9 @@ root
 
 ## 🔧 创建您的OMS服务(Create your OMS service)
 
-<p style="color:red">请在启动服务之前确保给予了所有文件的读取、写入、执行的权限</p>
+**请在启动服务之前确保给予了所有文件的读取、写入、执行的权限**
 
-<p style="color:red">Please ensure that all files are granted read, write, and execute permissions before starting the service</p>
+**Please ensure that all files are granted read, write, and execute permissions before starting the service**
 
 >1.复制空白配置文件
 >
@@ -190,7 +190,6 @@ chmod 777 start.sh
 a. 请检查公共帐户和密码以及root密码是否正确
 
 a. Please check whether the public account and password, as well as the root password, are correct
-
 <br>
 <br>
 
