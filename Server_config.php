@@ -45,30 +45,10 @@ const __SERVER_CONFIG__KEY__ = 'k0';//key是唯一的长度不限，格式k[a-Z0
 const __SERVER_CONFIG__URL__ = 'ws://192.168.1.1:9998';//您的服务器websocket链接的地址
 const __SERVER_CONFIG__NAME__ = '地图名称';//您的服务器名称
 const __SERVER_CONFIG__MAX_USER__ = '20';//服务器最大在线人数
-//以下四个常量规定了地图在什么区域内进行绘制
-const __SERVER_CONFIG__MAX_HEIGHT__ = '10000';//最大高度
-const __SERVER_CONFIG__MIN_HEIGHT__ = '-10000';//最小高度
-const __SERVER_CONFIG__MAX_WIDTH__ = '10000';//最大宽度
-const __SERVER_CONFIG__MIN_WIDTH__ = '-10000';//最小宽度
-//以下两个常量决定了区域内横轴和纵轴的最小层级下（layer0）每像素移动量单位
-const __SERVER_CONFIG__UNIT1_Y__ = '1';//纵轴单位1
-const __SERVER_CONFIG__UNIT1_X__ = '1';//横轴单位1
-//打开地图时的默认中心点
-const __SERVER_CONFIG__P0_X__ = '0';//默认x
-const __SERVER_CONFIG__P0_Y__ = '0';//默认y
-//层级为地图数据的缩放层级，可限制用户在高层级编辑地图导致严重误差
-const __SERVER_CONFIG__MAX_LAYER__ = '5';//最大层级
-const __SERVER_CONFIG__MIN_LAYER__ = '0';//最小层级
-const __SERVER_CONFIG__DEFAULT_LAYER__ = '0';//默认层级
-const __SERVER_CONFIG__ZOOM_ADD__ = '1';//默认缩放比例
+const __SERVER_CONFIG__DEFAULT_X__ = '0';//默认中心的经度x
+const __SERVER_CONFIG__DEFAULT_Y__ = '0';//默认中心的纬度y
 //底图配置
 //缩放比为带有底图瓦图服务器的地图服务，可限制用户对底图缩放
 const __SERVER_CONFIG__ENABLE_BASE_MAP__ = false;//表示是否启用额外的底图服务
-const __SERVER_CONFIG__DEFAULT_X__ = '0';//默认x
-const __SERVER_CONFIG__DEFAULT_Y__ = '0';//默认y
-const __SERVER_CONFIG__RESOLUTION_X__ = '1920';//屏幕默认分辨率
-const __SERVER_CONFIG__RESOLUTION_Y__ = '980';//屏幕默认分辨率
-const __SERVER_CONFIG__MAX_ZOOM__ = '0';//最大底图缩放等级
-const __SERVER_CONFIG__MIN_ZOOM__ = '0';//最小底图缩放等级
-const __SERVER_CONFIG__DEFAULT_ZOOM__ = '0';//默认底图缩放等级
+const __SERVER_CONFIG__BASE_MAP_TYPE__ = 'realistic';//realistic和fictitious
 const __SERVER_CONFIG__BASE_MAP_URL__ = '';//底图服务的服务器URL

@@ -16,8 +16,7 @@ SET members=" . $members . ",
 WHERE id=" . $id;
     }
     function getInsertLayerDataSql($id,$type,$members,$structure,$phase,$mysql_public_layer_name){
-        return "INSERT INTO " . $mysql_public_layer_name . " 
-VALUES ({$id},'{$type}',{$members},{$structure},{$phase})";
+        return "INSERT INTO " . $mysql_public_layer_name . "  VALUES ({$id},'{$type}',{$members},{$structure},{$phase})";
     }
     global $mysql_public_server_address,$mysql_root_password,$mysql_public_layer_name,$mysql_public_db_name;
     $filePath='./cache/layerDataCache.json';
@@ -1726,32 +1725,13 @@ function handle_message($connection,$data){//收到客户端消息
                             'name'=>__SERVER_CONFIG__NAME__,
                             'online_number'=>getOnlineNumber(),
                             'max_online'=>__SERVER_CONFIG__MAX_USER__,
-                            'max_height'=>__SERVER_CONFIG__MAX_HEIGHT__,
-                            'min_height'=>__SERVER_CONFIG__MIN_HEIGHT__,
-                            'max_width'=>__SERVER_CONFIG__MAX_WIDTH__,
-                            'min_width'=>__SERVER_CONFIG__MIN_WIDTH__,
-                            'unit1_y'=>__SERVER_CONFIG__UNIT1_Y__,
-                            'offset_y'=>__SERVER_CONFIG__OFFSET_Y__,
-                            'unit1_x'=>__SERVER_CONFIG__UNIT1_X__,
-                            'offset_x'=>__SERVER_CONFIG__OFFSET_X__,
                             'default_x'=>__SERVER_CONFIG__DEFAULT_X__,
                             'default_y'=>__SERVER_CONFIG__DEFAULT_Y__,
-                            'resolution_x'=>__SERVER_CONFIG__RESOLUTION_X__,
-                            'resolution_y'=>__SERVER_CONFIG__RESOLUTION_Y__,
-                            'p0_x'=>__SERVER_CONFIG__P0_X__,
-                            'p0_y'=>__SERVER_CONFIG__P0_Y__,
-                            'max_layer'=>__SERVER_CONFIG__MAX_LAYER__,
-                            'min_layer'=>__SERVER_CONFIG__MIN_LAYER__,
-                            'default_layer'=>__SERVER_CONFIG__DEFAULT_LAYER__,
-                            'zoom_add'=>__SERVER_CONFIG__ZOOM_ADD__,
                             /*底图
                              *以下为关于额外底图的配置信息
                              */
                             'enable_base_map'=>__SERVER_CONFIG__ENABLE_BASE_MAP__,
                             'base_map_type'=>__SERVER_CONFIG__BASE_MAP_TYPE__,
-                            'max_zoom'=>__SERVER_CONFIG__MAX_ZOOM__,
-                            'min_zoom'=>__SERVER_CONFIG__MIN_ZOOM__,
-                            'default_zoom'=>__SERVER_CONFIG__DEFAULT_ZOOM__,
                             'base_map_url'=>__SERVER_CONFIG__BASE_MAP_URL__
                         ]];
                         $sendJson=json_encode($sendArr);
