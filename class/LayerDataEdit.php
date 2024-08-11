@@ -1636,6 +1636,7 @@ class LayerDataEdit
     function getLayerData($encode=false){
         $ref=[];
         foreach($this->layerData as $data){
+            if($data['phase']===2)continue;
             if($encode===true){
                 if($data['type']==='order'){//only order
                     $data['members']=json_encode($data['members'],true);//encode
