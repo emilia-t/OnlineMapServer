@@ -1756,6 +1756,9 @@ function handle_message($connection,$data){//收到客户端消息
                         break;
                     }
             case 'login':{//登录
+                        if(getOnlineNumber()>=__SERVER_CONFIG__MAX_USER__){//如果在线人数大于最大允许人数则不再接受新会话登录
+                            break;
+                        }
                         $Email=$jsonData['data']['email'];
                         $Password=$jsonData['data']['password'];
                         if(!is_string($Email) || !is_string($Password)){//检查是否为字符串
@@ -1783,6 +1786,9 @@ function handle_message($connection,$data){//收到客户端消息
                         break;
                     }
             case 'anonymousLogin':{
+                if(getOnlineNumber()>=__SERVER_CONFIG__MAX_USER__){//如果在线人数大于最大允许人数则不再接受新会话登录
+                    break;
+                }
                 if(!array_key_exists('data',$jsonData)){
                     break;
                 }
@@ -2023,15 +2029,20 @@ function adjustLayerOrder($arr,$passive,$active,$type){
  */
 function getOnlineNumber(){
     global $socket_worker;
-    $num=0;
+    $users=[];
     foreach ($socket_worker->connections as $con){
-        if(property_exists($con,'email')){
-            if($con->email!=''){
-                $num++;
-            }
+        if(!property_exists($con,'email')){//匿名且未登录的socket
+            continue;
         }
+        if($con->email===''){//空用户
+            continue;
+        }
+        if(in_array($con->email,$users)){//同一账号但不同会话的socket
+            continue;
+        }
+        array_push($users,$con->email);
     }
-    return $num;
+    return count($users);
 }
 
 /**生成当前时间
