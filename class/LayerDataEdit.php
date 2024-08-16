@@ -1073,6 +1073,7 @@ class LayerDataEdit
             if($varyColorRule){$this->layerData[$layerId]['structure'][1]['template']['colorRule']=$template['colorRule'];}
             if($varyWidthRule){$this->layerData[$layerId]['structure'][1]['template']['widthRule']=$template['widthRule'];}
             $ref['layer']=$layerId;
+            $this->layerData[$layerId]['structure'][1]['template']['modify']=$this->getFormattedDate();//更新修改时间
             $this->layerData[$layerId]['hasChange']=true;//修改状态
             $this->updateCache();
         }
