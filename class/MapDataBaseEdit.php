@@ -470,7 +470,7 @@ class MapDataBaseEdit
                         switch ($means){
                             case 'push':{
                                 array_push($members,$layerId);
-                                $newMembers=json_encode($members,true);
+                                $newMembers=json_encode($members,JSON_UNESCAPED_UNICODE);
                                 $updateMembersSql="UPDATE {$this->mapDateLayerName} SET members=? WHERE type='order'";
                                 $execute=$databaseLink->prepare($updateMembersSql);
                                 $execute->execute([$newMembers]);
@@ -486,7 +486,7 @@ class MapDataBaseEdit
                                 $indexId=array_search($layerId,$members,true);
                                 if($indexId!==false){
                                     array_splice($members,$indexId,1);
-                                    $newMembers=json_encode($members,true);
+                                    $newMembers=json_encode($members,JSON_UNESCAPED_UNICODE);
                                     $updateMembersSql="UPDATE {$this->mapDateLayerName} SET members=? WHERE type='order'";
                                     $execute=$databaseLink->prepare($updateMembersSql);
                                     $execute->execute([$newMembers]);
@@ -519,7 +519,7 @@ class MapDataBaseEdit
     function adjustOrderLayerData($newMembers){
         try{
             $databaseLink=$this->linkPdo;
-            $newMembers=json_encode($newMembers,true);
+            $newMembers=json_encode($newMembers,JSON_UNESCAPED_UNICODE);
             $updateMembersSql="UPDATE {$this->mapDateLayerName} SET members=? WHERE type='order'";
             $execute=$databaseLink->prepare($updateMembersSql);
             $execute->execute([$newMembers]);
@@ -597,7 +597,7 @@ class MapDataBaseEdit
             $SqlGetMembers="SELECT members FROM {$this->mapDateLayerName} WHERE id=$id";
             $MembersExecute=$databaseLink->query($SqlGetMembers);
             $MembersResult=$MembersExecute->fetch();//['members'=>'']
-            $MembersObj=json_decode(base64_decode($MembersResult['members']));
+            $MembersObj=json_decode($MembersResult['members']);
             $ref=[];//['145'=>1,'id'=>TypeNumber]
             foreach($MembersObj as $key=>$value){
                 $status=$this->updateElementPhase($key,2);

@@ -54,8 +54,8 @@ function insertLayer($layer){
     $type=$layer['type'];
     $phase=$layer['phase'];
     if($type==='group'){
-        $members=btoa(jsonStringify($layer['members']));
-        $structure=btoa(jsonStringify($layer['structure']));
+        $members=jsonStringify($layer['members']);
+        $structure=jsonStringify($layer['structure']);
         $sql="REPLACE INTO map_{$MapSerial}_layer (
           id,type,members,structure,phase) VALUES (
           $id,'$type','$members','$structure',$phase
@@ -75,13 +75,13 @@ function insertElement($element){
     global $Mysqli,$MapSerial;
     $id=intval($element['id']);
     $type=$element['type'];
-    $point=btoa(jsonStringify($element['point']));
-    $points=btoa(jsonStringify($element['points']));
+    $point=jsonStringify($element['point']);
+    $points=jsonStringify($element['points']);
     $color=$element['color'];
     $phase=$element['phase'];
     $width=$element['width'];
-    $details=btoa(jsonStringify($element['details']));
-    $custom=btoa(jsonStringify($element['custom']));
+    $details=jsonStringify($element['details']);
+    $custom=jsonStringify($element['custom']);
     $sql="REPLACE INTO map_{$MapSerial}_data (
           id,type,point,points,color,phase,width,details,custom) VALUES (
           $id,'$type','$point','$points','$color',$phase,$width,'$details','$custom'
@@ -93,7 +93,7 @@ function startSetting(){
 }
 function jsonStringify($value=[]){
     try {
-        return json_encode($value,true);
+        return json_encode($value,JSON_UNESCAPED_UNICODE);
     }catch (Exception $e){
         return false;
     }

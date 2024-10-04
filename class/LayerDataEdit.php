@@ -1037,7 +1037,7 @@ class LayerDataEdit
                 //[
                 //  id,
                 //  type,
-                //  details,//json encode -> base64 encode
+                //  details,
                 //] ,
                 //[......]
             ]
@@ -1121,10 +1121,10 @@ class LayerDataEdit
                   */
                 $elementData=$newMDBE->getElementById($eid);
                 if($elementData===false){continue;}//跳过查找不到的元素
-                $detailsData=json_decode(base64_decode($elementData['details']),true);
+                $detailsData=json_decode($elementData['details'],true);//数据库内的元素数据的points/point/details/custom不再使用base64编码
                 if($detailsData===null){continue;}//跳过解析失败的元素
                 $newDetails=$this->detailsTransform($detailsData,$template['detailsRule']);
-                $encodeString=base64_encode(json_encode($newDetails,true));
+                $encodeString=json_encode($newDetails,JSON_UNESCAPED_UNICODE);//数据库内的元素数据的points/point/details/custom不再使用base64编码
                 if($newDetails!==false){//if has change
                     $updateStatus=$newMDBE->updateElementData(
                         [
@@ -1136,7 +1136,7 @@ class LayerDataEdit
                         $ref['updateElements'][]=[
                             'id'=>$eid,
                             'type'=>$typeNumString[$eType],
-                            'details'=>$encodeString
+                            'details'=>$newDetails
                         ];
                     }
                 }
@@ -1192,7 +1192,7 @@ class LayerDataEdit
             if(count($json)===0){
                 $status=file_put_contents($filePath,'');//清空缓存
             }else{
-                $JSON=json_encode($json,true);
+                $JSON=json_encode($json,JSON_UNESCAPED_UNICODE);//不对Unicode字符进行转义
                 $status=file_put_contents($filePath,$JSON);//更新缓存
                 echo $status?"\nupdate layer cache succeed.\n":"\nupdate layer cache fail.\n";
             }
@@ -1339,8 +1339,8 @@ class LayerDataEdit
         $this->addOrderMember($layerId);//更新排序图层
 
         $groupLayer=['id'=>$layerId,'type'=>'group','phase'=>1];//要返回的新增图层数据
-        $groupLayer['members']=$newJDT->btoa($newJDT->jsonPack($layerData[$layerId]['members']));
-        $groupLayer['structure']=$newJDT->btoa($newJDT->jsonPack($layerData[$layerId]['structure']));
+        $groupLayer['members']=$layerData[$layerId]['members'];
+        $groupLayer['structure']=$layerData[$layerId]['structure'];
         $orderLayer=$this->getOrderMembers();
         $this->updateCache();
         return [
@@ -1568,8 +1568,8 @@ class LayerDataEdit
             $aElementData=$newMDBE->getElementById($elementA);
             if($aElementData===false){return [];}//查询数据失败返回空
             $aType=$aElementData['type'];
-            $aDetails=json_decode(base64_decode($aElementData['details']),true);
-            $aCustom=json_decode(base64_decode($aElementData['custom']),true);
+            $aDetails=json_decode($aElementData['details'],true);
+            $aCustom=json_decode($aElementData['custom'],true);
             if($aDetails===null){return [];}//解析失败返回空
             if($aCustom===null){return [];}//解析失败返回空
             if($bTemplateData['typeRule'][$aType]!==true){return [];}//b图层不允许a元素类型加入则返回空
@@ -1579,8 +1579,8 @@ class LayerDataEdit
                 $updateStatus=$newMDBE->updateElementData(
                     [
                         'id'=>$elementA,
-                        'details'=>base64_encode(json_encode($newDetails,true)),
-                        'custom'=>base64_encode(json_encode($aCustom,true))
+                        'details'=>json_encode($newDetails,JSON_UNESCAPED_UNICODE),
+                        'custom'=>json_encode($aCustom,JSON_UNESCAPED_UNICODE)
                     ]
                 );
                 if($updateStatus){
@@ -1640,15 +1640,18 @@ class LayerDataEdit
             if($data['phase']===2)continue;
             if($encode===true){
                 if($data['type']==='order'){//only order
-                    $data['members']=json_encode($data['members'],true);//encode
+                    unset($data['hasChange']);
+                    $data['members']=json_encode($data['members'],JSON_UNESCAPED_UNICODE);//encode
                     $ref[]=$data;
                 }else{
-                    $data['members']=base64_encode(json_encode($data['members'],true));//encode
-                    $data['structure']=base64_encode(json_encode($data['structure'],true));
+                    unset($data['hasChange']);
+                    $data['members']=json_encode($data['members'],JSON_UNESCAPED_UNICODE);//encode
+                    $data['structure']=json_encode($data['structure'],JSON_UNESCAPED_UNICODE);
                     $ref[]=$data;
                 }
             }
             else{
+                unset($data['hasChange']);
                 $ref[]=$data;
             }
         }
@@ -1874,6 +1877,7 @@ WHERE id=" . $id;
     function renewalLayerData(){
         global $newJDT,$mysql_public_server_address,$mysql_root_password,$mysql_public_layer_name,$mysql_public_db_name;
         $conn=mysqli_connect($mysql_public_server_address,'root',$mysql_root_password,$mysql_public_db_name);
+        mysqli_set_charset($conn,"utf8");//设置连接时的字符编码
         if(!$conn){
             echo "\n[自动任务]无法更新图层数据，因为root连接数据库失败\n";
             mysqli_close($conn);
@@ -1887,8 +1891,8 @@ WHERE id=" . $id;
             $structure=$item['structure'];
             $phase=$item['phase'];
             if($type!=='order'){//普通图层
-                $members="'".$newJDT->btoa($newJDT->jsonPack($members))."'";
-                $structure="'".$newJDT->btoa($newJDT->jsonPack($structure))."'";
+                $members="'".$newJDT->jsonPack($members)."'";
+                $structure="'".$newJDT->jsonPack($structure)."'";
             }else{
                 $members="'".$newJDT->jsonPack($members)."'";
                 $structure='""';
@@ -1946,8 +1950,8 @@ WHERE id=" . $id;
                     $this->layerData[$key]=$layers[$i];
                     $this->layerData[$key]['hasChange']=false;
                 }else{
-                    $layers[$i]['members']=$newJDT->jsonParse($newJDT->atob($layers[$i]['members']));//解析
-                    $layers[$i]['structure']=$newJDT->jsonParse($newJDT->atob($layers[$i]['structure']));//解析
+                    $layers[$i]['members']=$newJDT->jsonParse($layers[$i]['members']);//解析
+                    $layers[$i]['structure']=$newJDT->jsonParse($layers[$i]['structure']);//解析
                     $this->layerData[$key]=$layers[$i];
                     $this->layerData[$key]['hasChange']=false;
                 }

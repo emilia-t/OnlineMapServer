@@ -30,7 +30,7 @@ class JsonDisposalTool
      */
     function jsonPack($value=[]){
         try {
-            return json_encode($value,true);
+            return json_encode($value,JSON_UNESCAPED_UNICODE);
         }catch (Exception $e){
             return false;
         }
