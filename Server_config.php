@@ -2,10 +2,17 @@
 /**这是一个示例配置文件
  * 服务器地址配置：
  **/
-const __SERVER_IP_PORT__='192.168.1.1:9998';
+const __SERVER_IP_PORT__='192.168.1.1:9998';//服务器ip和port
+const __LANGUAGE__='chinese';//服务器语言 chinese || english
 /**
  * 数据库配置：
  **/
+const __DATABASE_NAME__="mysql";//使用的数据库名称 sqlite || mysql(default)
+
+//sqlite初始化管理员账户名称：administrators@a.com
+//sqlite初始化管理员账户密码：administrators
+
+/*以下配置仅在__DATABASE_NAME__=mysql时有用*/
 $mysql_public_server_address="localhost";//docker版请输入mysql容器名一般为mysql
 $mysql_public_server_hostname="localhost";//docker版请输入%
 //公用账号，如果没有账号，请手动创建一个公用账号，然后将账号和密码分别填入下方
@@ -19,6 +26,7 @@ $mysql_public_sheet_name='map_0_data';
 $mysql_public_layer_name='map_0_layer';
 //root账号，您可以在确保地图数据库正常且完整运行一次AmapService.php后改为空字符串
 $mysql_root_password="password";
+/*以上配置仅在__DATABASE_NAME__=mysql时有用*/
 /**
  * RSA配置：
  **/

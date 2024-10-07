@@ -1,13 +1,127 @@
 <?php
+/**
+<php-config>
+ **/
+error_reporting(E_ALL);//设置报错等级
+date_default_timezone_set('Asia/Hong_Kong');//设置时区
+ini_set('extension', 'pdo_mysql');//启用PDO
+/**
+</php-config>
+ **/
 $Version = '0.6.5';
 ################Script initial execution################
 require 'config/Server_config.php';
 require 'Aconst.php';
 
+/**上传缓存-sqlite
+ * @return int status
+ */
+function uploadCacheSqlite(){
+    if(__DATABASE_NAME__==='mysql'){
+        return uploadCache();
+    }
+    $filePath='./cache/layerDataCache.json';
+    $file=null;
+    if(!file_exists($filePath)){//检查是否存在文件
+        $file=fopen('./cache/layerDataCache.json','w+');
+        fclose($file);return 1;
+    }
+    $content=file_get_contents($filePath);//获取文件内容
+    if($content===false || strlen($content)===0){//文件内容为空
+        $file=fopen('./cache/layerDataCache.json','w+');
+        fclose($file);return 2;
+    }
+    $legacyData=json_decode($content,true);//解析文件数据
+    if($legacyData===null){//解析数据失败
+        $file=fopen('./cache/layerDataCache.json','w+');
+        fclose($file);return 3;
+    }
+    if(!is_array($legacyData)){//数据类型错误
+        $file=fopen('./cache/layerDataCache.json','w+');
+        fclose($file);return 4;
+    }
+    /*
+     * 上传旧数据至数据库
+     */
+    $sqlite_db = './tools/SQLite/data.sqlite'; // SQLite 数据库文件路径
+    $sqlite = null;
+    try {
+        $sqlite = new PDO("sqlite:$sqlite_db");
+        $sqlite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        echo "成功连接到 SQLite 数据库！";
+    } catch (PDOException $e) {
+        echo "数据库连接失败: " . $e->getMessage();
+        exit("[异常退出]缓存数据无法上传至数据库，因为连接sqlite数据库失败\n");
+    }
+    foreach($legacyData as $key=>$item){
+        if($item['hasChange']===false){continue;}
+        $id=$item['id'];
+        $type=$item['type'];
+        $members=$item['members'];
+        $structure=$item['structure'];
+        $phase=$item['phase'];
+        if($type!=='order'){//普通图层
+            $members="'".json_encode($members,JSON_UNESCAPED_UNICODE)."'";
+            $structure="'".json_encode($structure,JSON_UNESCAPED_UNICODE)."'";
+        }else{
+            $members="'".json_encode($members,JSON_UNESCAPED_UNICODE)."'";
+            $structure='""';
+        }
+        $searchSql="SELECT id FROM map_0_layer WHERE id={$id}";
+        $search = $sqlite->query($searchSql);
+        if($search){
+            $searchRow=$search->fetchAll(PDO::FETCH_ASSOC);
+            $row=count($searchRow);
+            if($row!=0){//更新数据
+                $updateSQL = "UPDATE map_0_layer SET members = :value1, structure = :value2 , phase = :value3 WHERE id = :id";// 更新数据的 SQL 语句
+                $stmt = $sqlite->prepare($updateSQL);// 预处理 SQL 语句
+                $stmt->bindParam(':value1', $value1);// 绑定参数
+                $stmt->bindParam(':value2', $value2);
+                $stmt->bindParam(':value3', $value3);
+                $stmt->bindParam(':id', $id);
+                $value1 = $members;// 设置参数值
+                $value2 = $structure;
+                $value3 = $phase;
+                $status=$stmt->execute();// 执行更新
+                if($status){
+                    echo "[缓存上传]更新图层(".$type.$id.")数据成功\n\n";
+                }else{
+                    echo "[缓存上传]更新图层(".$type.$id.")数据失败\n\n";
+                }
+            }
+            else{//插入数据
+                $insertSQL = "INSERT INTO map_0_layer ('id', 'type', 'members', 'structure', 'phase') VALUES (:value1, :value2, :value3, :value4, :value5)";// 插入数据的 SQL 语句
+                $stmt = $sqlite->prepare($insertSQL);// 预处理 SQL 语句
+                $stmt->bindParam(':value1', $value1);// 绑定参数
+                $stmt->bindParam(':value2', $value2);
+                $stmt->bindParam(':value3', $value3);
+                $stmt->bindParam(':value4', $value4);
+                $stmt->bindParam(':value5', $value5);
+                $value1 = $id;// 设置参数值
+                $value2 = $type;
+                $value3 = $members;
+                $value4 = $structure;
+                $value5 = $phase;
+                $status=$stmt->execute();// 执行插入
+                if($status){
+                    echo "[缓存上传]新增图层(".$type.$id.")数据成功\n\n";
+                }else{
+                    echo "[缓存上传]新增图层(".$type.$id.")数据失败\n\n";
+                }
+            }
+        }
+    }
+    $file=fopen('./cache/layerDataCache.json','w+');//清空缓存
+    fclose($file);
+    return 10;
+}
 /**上传缓存
  * @return int status
  */
 function uploadCache(){
+    if(__DATABASE_NAME__==='sqlite'){
+        return uploadCacheSqlite();
+    }
     function getUpdateLayerDataSql($id,$members,$structure,$phase,$mysql_public_layer_name){
         return "UPDATE " . $mysql_public_layer_name . " 
 SET members=" . $members . ",
@@ -44,9 +158,8 @@ WHERE id=" . $id;
      */
     $conn=mysqli_connect($mysql_public_server_address,'root',$mysql_root_password,$mysql_public_db_name);
     if(!$conn){
-        echo "[异常退出]缓存数据无法上传至数据库，因为root连接数据库失败\n";
         mysqli_close($conn);
-        exit("服务已终止\n");
+        exit("[异常退出]缓存数据无法上传至数据库，因为root连接数据库失败\n");
     }
     foreach($legacyData as $key=>$item){
         if($item['hasChange']===false){continue;}
@@ -108,7 +221,6 @@ function createMapDatabase(){
         return false;
     }
 }
-
 /**赋予公共账号数据库权限
  * @return bool
  */
@@ -128,7 +240,69 @@ function grantPublicAuthority(){
         return false;
     }
 }
-
+/**创建数据库SQLite
+ * @return bool
+ */
+function createSqliteDatabase() {
+    $dbFilePath = './tools/SQLite/data.sqlite'; // 数据库文件地址
+    // 1. 检查 "./tools/SQLite/data.sqlite" 文件是否存在，如果存在则返回 false
+    if (file_exists($dbFilePath)) {
+        return false;
+    }
+    try {
+        // 2. 创建 SQLite 数据库文件并建立连接
+        $pdo = new PDO('sqlite:' . $dbFilePath);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        // 3. 创建 account_data 表
+        $createAccountDataTable = getCreateAccountDataTableSqlite();
+        $pdo->exec($createAccountDataTable);
+        // 4. 创建 map_0_data 表
+        $createMap0DataTable = getCreateMap0DataTableSqlite();
+        $pdo->exec($createMap0DataTable);
+        // 5. 创建 map_0_layer 表
+        $createMap0LayerTable = getCreateMap0LayerTableSqlite();
+        $pdo->exec($createMap0LayerTable);
+        // 6. 插入默认的账户数据到 account_data 表
+        $insertDefaultAccount = getInsertDefaultAccountSql();
+        $pdo->exec($insertDefaultAccount);
+        // 7. 插入默认的图层数据到map_0_layer表
+        $insertDefaultOrder = getInsertDefaultOrderSql();
+        $pdo->exec($insertDefaultOrder);
+        // 7. 插入默认的图层数据到map_0_layer表
+        $insertDefaultGroup = getInsertDefaultGroupSql();
+        $pdo->exec($insertDefaultGroup);
+        return true;
+    } catch (PDOException $e) {
+        // 如果出现异常，返回 false 并输出错误信息
+        echo "数据库创建失败: " . $e->getMessage();
+        return false;
+    }
+}
+/**检测数据库是否创建SQLite
+ * @return bool
+ */
+function checkSqliteDatabase(){
+    $dbFilePath = './tools/SQLite/data.sqlite';
+    if (!file_exists($dbFilePath)) {// 1. 检查 "./tools/SQLite/data.sqlite" 文件是否存在，如果不存在则返回 false
+        return false;
+    }
+    try {// 2. 尝试连接 data.sqlite 数据库文件，如果连接失败则返回 false
+        $pdo = new PDO('sqlite:' . $dbFilePath);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        // 3. 尝试获取所有的表，并检查是否包含 account_data，map_0_data，map_0_layer
+        $requiredTables = ['account_data', 'map_0_data', 'map_0_layer'];
+        $result = $pdo->query("SELECT name FROM sqlite_master WHERE type='table'");
+        $existingTables = $result->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($requiredTables as $table) {
+            if (!in_array($table, $existingTables)) {
+                return false;
+            }
+        }
+    } catch (PDOException $e) {
+        return false;
+    }
+    return true;
+}
 /**检测数据库map是否创建root下进行
  * @return bool
  */
@@ -163,7 +337,6 @@ function checkRootAccount(){
         return true;
     }
 }
-
 /**检测数据库public账号是否密码正确
  * @return bool
  */
@@ -178,74 +351,119 @@ function checkPublicAccount(){
         return true;
     }
 }
-echo "OnlineMapServer Version {$Version}\n";
-echo "(c) Minxi Wan。保留所有权利。\n";
-echo "Please wait ! the service will start in 5 seconds.\n";
+echo "\n\n";////////////////////////////////////////////////////////////////////////////////////////
+echo __LANGUAGE__==='chinese'?"中文Chinese\n":"English英文\n";
+echo __LANGUAGE__==='chinese'?"数据库名称：".__DATABASE_NAME__."\n":"Database name : ".__DATABASE_NAME__."\n";
+echo __LANGUAGE__==='chinese'?"在线地图服务 版本 {$Version}\n":"OnlineMapServer Version {$Version}\n";
+echo __LANGUAGE__==='chinese'?"(c) Minxi Wan，保留所有权利。\n":"(c) Minxi Wan All right reserved.\n";
+echo __LANGUAGE__==='chinese'?"请稍等！服务将在5秒后启动。\n":"Please wait ! the service will start in 5 seconds.\n";
 usleep(5000000);
-echo "\n\n";
-echo "① upload layer cache to mysql...\n";//////////////////////
-if(uploadCache()===10){//PCNTL check
-    echo "upload layer cache done.\n";
-}
-echo "\n\n";
-echo "② PCNTL extension checking...\n";//////////////////////
-if(extension_loaded('pcntl')){//PCNTL check
-    echo "PCNTL extension is loaded.\n";
+echo "\n\n";////////////////////////////////////////////////////////////////////////////////////////
+echo __LANGUAGE__==='chinese'?"① 将图层缓存上传到数据库..\n":"① upload layer cache to database...\n";
+if(uploadCache()===10){
+    echo __LANGUAGE__==='chinese'?"上传图层缓存已完成。\n":"upload layer cache done.\n";
 }else{
-    echo "PCNTL extension is not loaded.\n";
-    echo "Suggest refactoring and enabling PCNTL.\n";
+    echo __LANGUAGE__==='chinese'?"没有任何变化(跳过)。\n":"there is no change(skip).\n";
 }
-echo "\n\n";
-echo "③ Confirm your account...\n";///////////////////////////
-echo "--Mysql password config--\n";
-echo "root password :\n";
-echo $mysql_root_password."\n";
-echo "public name :\n";
-echo $mysql_public_user."\n";
-echo "public password :\n";
-echo $mysql_public_password."\n";
-echo "\n\n";
-echo "④ Check mysql root account...\n";//////////////////////
-if(checkRootAccount()===false){
-    echo "Service shut down!\n";
-    exit("The mysql root account is incorrect!\n");
-}else{
-    echo "The mysql root account is correct.\n";
+echo "\n\n";////////////////////////////////////////////////////////////////////////////////////////
+echo __LANGUAGE__==='chinese' ? "② PHP 拓展检查中...\n" : "② php extension checking...\n";
+if (extension_loaded('pcntl')) { // PCNTL check
+    echo __LANGUAGE__==='chinese' ? "PCNTL 拓展已加载。\n" : "PCNTL extension is loaded.\n";
+} else {
+    echo __LANGUAGE__==='chinese' ? "PCNTL 拓展未加载。\n" : "PCNTL extension is not loaded.\n";
+    echo __LANGUAGE__==='chinese' ? "建议安装 PCNTL 拓展并启用它。\n" : "Suggest refactoring and enabling PCNTL.\n";
 }
-echo "\n\n";
-echo "⑤ Check mysql public account...\n";////////////////////
-if(checkPublicAccount()===false){
-    echo "Service shut down!\n";
-    exit("The mysql public account is incorrect!\n");
-}else{
-    echo "The mysql public account is correct.\n";
-}
-echo "\n\n";
-echo "⑥ Check if the map database has been created...\n";////
-if(checkMapDatabase()===false){
-    echo "The database has not been created yet!\n";
-    if(createMapDatabase()===false){
-        echo "Service shut down!\n";
-        exit("Unable to create database!\n");
-    }else{
-        echo "Database initialization successful!\n";
+if (__DATABASE_NAME__ === 'sqlite') {
+    if (extension_loaded('pdo_sqlite')) { // pdo_sqlite check
+        echo __LANGUAGE__==='chinese' ? "PDO SQLite 扩展已启用。\n" : "PDO SQLite extension is loaded.\n";
+    } else {
+        echo __LANGUAGE__==='chinese' ? "PDO SQLite 扩展未启用。\n" : "PDO SQLite extension is not loaded.\n";
+        exit(__LANGUAGE__==='chinese' ? "[异常退出]因为使用了SQLite作为数据库，但PHP却未启用pdo_sqlite拓展\n" : "[Exception Exit] Because SQLite was used as the database, but PHP did not enable the pdo_sqlite extension\n");
     }
-}else{
-    echo "The database has been created.\n";
 }
-echo "\n\n";
-echo "⑦ Set public account permissions...\n";//////////////////
-if(grantPublicAuthority()===false){
-    echo "Service shut down!\n";
-    exit("Failed to grant public account permissions!\n");
-}else{
-    echo "Successfully granted public account permissions.\n";
+if (__DATABASE_NAME__ === 'mysql') {
+    if (extension_loaded('mysqli')) { // mysqli check
+        echo __LANGUAGE__==='chinese' ? "MySQLi 扩展已启用。\n" : "MySQLi extension is loaded.\n";
+    } else {
+        echo __LANGUAGE__==='chinese' ? "MySQLi 扩展未启用。\n" : "MySQLi extension is not loaded.\n";
+        exit(__LANGUAGE__==='chinese' ? "[异常退出]因为使用了Mysql作为数据库，但PHP却未启用mysqli拓展\n" : "[Exception Exit] Because MySQL was used as the database, but PHP did not enable the mysqli extension\n");
+    }
 }
-echo "\n\n";
+echo "\n\n";////////////////////////////////////////////////////////////////////////////////////////
+if (__DATABASE_NAME__ === 'mysql') {
+    echo __LANGUAGE__==='chinese' ? "③ 检查你的mysql账号...\n" : "③ Confirm your mysql account...\n";
+    echo __LANGUAGE__==='chinese' ? "--Mysql 密码配置--\n" : "--Mysql password config--\n";
+    echo __LANGUAGE__==='chinese' ? "根密码:\n" : "root password :\n";
+    echo $mysql_root_password."\n";
+    echo __LANGUAGE__==='chinese' ? "公用账户名称 :\n" : "public name :\n";
+    echo $mysql_public_user."\n";
+    echo __LANGUAGE__==='chinese' ? "公用账户密码 :\n" : "public password :\n";
+    echo $mysql_public_password."\n";
+} else {
+    echo __LANGUAGE__==='chinese' ? "③ 检查你的mysql账号...(SQLite 跳过)\n" : "③ Confirm your mysql account...(SQLite skip)\n";
+}
+echo "\n\n";////////////////////////////////////////////////////////////////////////////////////////
+if (__DATABASE_NAME__ !== 'sqlite') {
+    echo __LANGUAGE__==='chinese' ? "④ 检查mysql根账户中...\n" : "④ Check mysql root account...\n";
+    if (checkRootAccount() === false) {
+        exit(__LANGUAGE__==='chinese' ? "[异常退出]因为mysql的root帐户密码不正确！\n" : "[Abnormal exit] Because the root account password for MySQL is incorrect!\n");
+    } else {
+        echo __LANGUAGE__==='chinese' ? "mysql的根账户正确无误。\n" : "The mysql root account is correct.\n";
+    }
+} else {
+    echo __LANGUAGE__==='chinese' ? "④ 检查mysql根账户中...(SQLite 跳过)\n" : "④ Check mysql root account...(SQLite skip)\n";
+}
+echo "\n\n";////////////////////////////////////////////////////////////////////////////////////////
+if (__DATABASE_NAME__ !== 'sqlite') {
+    echo __LANGUAGE__==='chinese' ? "⑤ 检查mysql公用账户中...\n" : "⑤ Check mysql public account...\n";
+    if (checkPublicAccount() === false) {
+        exit(__LANGUAGE__==='chinese' ? "[异常退出]因为mysql的公用账户密码不正确！\n" : "[Abnormal Exit] Because the password for MySQL's public account is incorrect!\n");
+    } else {
+        echo __LANGUAGE__==='chinese' ? "mysql的公用账户正确无误。\n" : "The mysql public account is correct.\n";
+    }
+} else {
+    echo __LANGUAGE__==='chinese' ? "⑤ 检查mysql公用账户中...(SQLite 跳过)\n" : "⑤ Check mysql public account...(SQLite skip)\n";
+}
+echo "\n\n";////////////////////////////////////////////////////////////////////////////////////////
+echo __LANGUAGE__==='chinese' ? "⑥ 检查地图数据库中...\n" : "⑥ Check if the map database has been created...\n";
+if (__DATABASE_NAME__ === 'mysql') {
+    if (checkMapDatabase() === false) {
+        echo __LANGUAGE__==='chinese' ? "目前还未创建地图数据库。\n" : "The database has not been created yet.\n";
+        if (createMapDatabase() === false) {
+            exit(__LANGUAGE__==='chinese' ? "[异常退出]因为无法创建数据库！\n" : "[Exception exit] Because unable to create database!\n");
+        } else {
+            echo __LANGUAGE__==='chinese' ? "地图数据库初始化成功！\n" : "Database initialization successful!\n";
+        }
+    } else {
+        echo __LANGUAGE__==='chinese' ? "地图数据库已经存在。\n" : "The database has been created.\n";
+    }
+} else {
+    if (checkSqliteDatabase() === false) {
+        echo __LANGUAGE__==='chinese' ? "目前还未创建地图数据库。\n" : "The database has not been created yet!\n";
+        if (createSqliteDatabase() === false) {
+            exit(__LANGUAGE__==='chinese' ? "[异常退出]因为无法创建数据库！\n" : "[Exception exit] Because unable to create database!\n");
+        } else {
+            echo __LANGUAGE__==='chinese' ? "地图数据库初始化成功！\n" : "Database initialization successful!\n";
+        }
+    } else {
+        echo __LANGUAGE__==='chinese' ? "地图数据库已经存在。\n" : "The database has been created.\n";
+    }
+}
+echo "\n\n";////////////////////////////////////////////////////////////////////////////////////////
+if (__DATABASE_NAME__ === 'mysql') {
+    echo __LANGUAGE__==='chinese' ? "⑦ 设置公用账户的权限...\n" : "⑦ Set public account permissions...\n";
+    if (grantPublicAuthority() === false) {
+        exit(__LANGUAGE__==='chinese' ? "[异常退出]因为无法授予公共帐户权限！\n" : "[Abnormal Exit] Due to inability to grant public account permissions!\n");
+    } else {
+        echo __LANGUAGE__==='chinese' ? "已成功为公用账户授予权限\n" : "Successfully granted public account permissions.\n";
+    }
+} else {
+    echo __LANGUAGE__==='chinese' ? "⑦ 设置公用账户的权限...(SQLite 跳过)\n" : "⑦ Set public account permissions...(SQLite skip)\n";
+}
+echo "\n\n";////////////////////////////////////////////////////////////////////////////////////////
 echo "...All Done\n";
 echo "\n\n";
 ################Script initial execution################
-
 /*
 ----------注释标准(Annotation standards)----------
 普通注释，在每行末尾。(Normal annotation,at the end of each line.)：
@@ -272,35 +490,19 @@ function test($id){
 */
 
 /**
-<php-config>
- **/
-error_reporting(E_ALL);//设置报错等级
-date_default_timezone_set('Asia/Hong_Kong');//设置时区
-ini_set('extension', 'pdo_mysql');//启用PDO
-/**
-</php-config>
- **/
-
-/**
 <external-program>
  **/
 use Workerman\Worker;
 use Workerman\Timer;
-//use PHPMailer\PHPMailer\PHPMailer;
-//use PHPMailer\PHPMailer\Exception;
 use Workerman\Connection\AsyncTcpConnection;
 use Workerman\Protocols\Http\Response;
 require 'Workerman/Autoloader.php';
-//require 'PHPMailer/src/Exception.php';
-//require 'PHPMailer/src/PHPMailer.php';
-//require 'PHPMailer/src/SMTP.php';
 
 require 'api/Public_getPublickey.php';//获取公钥与私钥的API
 require 'api/Other_RsaTranslate.php';//解密和加密功能
-
 require 'class/QualityInspectionRoom.php';//通用数据检测工具
 require 'class/JsonDisposalTool.php';//json工具
-require 'class/MapDataBaseEdit.php';//地图数据库编辑工具
+require 'class/MapDataEdit.php';//地图数据库编辑工具
 require 'class/FileOperation.php';//文件处理类
 require 'class/instruct.php';//指令集合
 require 'class/LayerDataEdit.php';//指令集合
@@ -315,8 +517,8 @@ $newQIR=new QualityInspectionRoom(false);
 $newJDT=new JsonDisposalTool();
 $newFO=new FileOperation();
 $instruct=new instruct(true,true);
-$newMDBE=new MapDataBaseEdit($mysql_public_sheet_name,$mysql_public_layer_name);
-$newLDE=new LayerDataEdit('chinese');
+$newMDE=new MapDataEdit($mysql_public_sheet_name,$mysql_public_layer_name);
+$newLDE=new LayerDataEdit(__LANGUAGE__);
 /**
 </class>
  **/
@@ -422,7 +624,7 @@ function handle_connection($connection){
  * @return bool
  */
 function handle_message($connection,$data){//收到客户端消息
-    global $newLDE,$theData,$theConfig,$socket_worker,$newQIR,$newJDT,$newMDBE,$newFO,$instruct,$Version;
+    global $newLDE,$theData,$theConfig,$socket_worker,$newQIR,$newJDT,$newMDE,$newFO,$instruct,$Version;
     $jsonData=$newJDT->checkJsonData($data);//1.校验并解析json格式
     $activated=false;
     if(property_exists($connection,'email')){$activated=true;}
@@ -567,7 +769,7 @@ function handle_message($connection,$data){//收到客户端消息
                                 /*全部检查完毕
                                   *上传至数据库
                                   */
-                                $uploadId=$newMDBE->uploadElementData($mysqlStructure,'area');
+                                $uploadId=$newMDE->uploadElementData($mysqlStructure,'area');
                                 if($uploadId!==-1){//写入日志文件和广播给其他用户
                                     $newId=$uploadId;
                                     $basicStructure['id']=$newId;//更改basic id
@@ -697,7 +899,7 @@ function handle_message($connection,$data){//收到客户端消息
                                 /*全部检查完毕
                                   *上传至数据库
                                   */
-                                $uploadId=$newMDBE->uploadElementData($mysqlStructure,'line');
+                                $uploadId=$newMDE->uploadElementData($mysqlStructure,'line');
                                 if($uploadId!==-1){//更新成功后写入日志文件并广播给其他用户
                                     $newId=$uploadId;
                                     $basicStructure['id']=$newId;//更改basic id
@@ -827,7 +1029,7 @@ function handle_message($connection,$data){//收到客户端消息
                                 /*全部检查完毕
                                   *上传至数据库
                                   */
-                                $uploadId=$newMDBE->uploadElementData($mysqlStructure,'curve');
+                                $uploadId=$newMDE->uploadElementData($mysqlStructure,'curve');
                                 if($uploadId!==-1){//更新成功后写入日志文件并广播给其他用户
                                     $newId=$uploadId;
                                     $basicStructure['id']=$newId;//更改basic id
@@ -945,7 +1147,7 @@ function handle_message($connection,$data){//收到客户端消息
                                 /*全部检查完毕
                                   *上传至数据库
                                   */
-                                $uploadId=$newMDBE->uploadElementData($mysqlStructure,'point');
+                                $uploadId=$newMDE->uploadElementData($mysqlStructure,'point');
                                 if($uploadId!==-1){//更新成功后写入日志文件并广播给其他用户
                                     $newId=$uploadId;
                                     $basicStructure['id']=$newId;//更改basic id
@@ -995,7 +1197,7 @@ function handle_message($connection,$data){//收到客户端消息
                                     $newLayerData=null;
                                     $sendJson0=null;
                                     if(array_key_exists('tmpId',$jsonData['data'])){$tmpId=$jsonData['data']['tmpId'];}
-                                    $updateStatus=$newMDBE->updateElementPhase($ID,2);//更改数据库
+                                    $updateStatus=$newMDE->updateElementPhase($ID,2);//更改数据库
                                     if($updateStatus===true){//更改成功则广播所有人
                                         /*
                                          *pick和select操作移除Start
@@ -1145,7 +1347,7 @@ function handle_message($connection,$data){//收到客户端消息
                                     $basicStructure['custom']=$custom;
                                     $mysqlStructure['custom']=$newJDT->jsonPack($custom);
                                 }
-                                $isSuccess=$newMDBE->updateElementData($mysqlStructure);//上传数据库
+                                $isSuccess=$newMDE->updateElementData($mysqlStructure);//上传数据库
                                 if($isSuccess){//更新成功后广播
                                     $broadcastEmail=$connection->email;
                                     $dateTime=creatDate();
@@ -1215,7 +1417,7 @@ function handle_message($connection,$data){//收到客户端消息
                                 //$nodeObject['points']=$newJDT->jsonPack($nodeObject['points']);//不再使用json重复打包数据
                                 $nodeMorph['points']=$newJDT->jsonPack($nodeMorph['points']);//上传至数据库的需要使用json打包为json数据
                                 //$nodeObject['points']=$newJDT->btoa($nodeObject['points']);//不再使用base64编码
-                                $isSuccess=$newMDBE->updateElementData($nodeMorph);//上传数据库
+                                $isSuccess=$newMDE->updateElementData($nodeMorph);//上传数据库
                                 if($isSuccess){
                                     if($newQIR->arrayPropertiesCheck('type',$jsonData['data'])){
                                         $nodeObject['type']=$jsonData['data']['type'];
@@ -1371,7 +1573,7 @@ function handle_message($connection,$data){//收到客户端消息
                             case 'restoreElement':{//恢复被删除的元素
                                 try{
                                     $ID=(int)$jsonData['data']['id'];
-                                    $elementData=$newMDBE->getElementById($ID);
+                                    $elementData=$newMDE->getElementById($ID);
                                     if($elementData!==false){//查询成功
                                         $broadcastEmail=$connection->email;
                                         $elementType=$elementData['type'];
@@ -1379,7 +1581,7 @@ function handle_message($connection,$data){//收到客户端消息
                                         $tmpId=null;
                                         $newLayerData=null;
                                         if(array_key_exists('tmpId',$jsonData['data'])){$tmpId=$jsonData['data']['tmpId'];}
-                                        $updateStatus=$newMDBE->updateElementPhase($ID,1);//更新元素周期
+                                        $updateStatus=$newMDE->updateElementPhase($ID,1);//更新元素周期
                                         $elementData['phase']=1;
                                         if($updateStatus===true){
                                             /*
@@ -1401,6 +1603,12 @@ function handle_message($connection,$data){//收到客户端消息
                                             /*
                                               *图层重新增加元素操作End
                                               */
+                                            $elementData['id']=intval($elementData['id']);//转化为整数
+                                            $elementData['width']=intval($elementData['width']);//转化为整数
+                                            $elementData['point']=json_decode($elementData['point'],true);
+                                            $elementData['points']=json_decode($elementData['points'],true);
+                                            $elementData['details']=json_decode($elementData['details'],true);
+                                            $elementData['custom']=json_decode($elementData['custom'],true);
                                             $sdJson1=['type'=>'broadcast','class'=>$elementData['type'],'conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>$elementData];
                                             $sendJson1=json_encode($sdJson1,JSON_UNESCAPED_UNICODE);
                                             $sdJson2=['type'=>'broadcast','class'=>'updateLayerData','conveyor'=>$broadcastEmail,'time'=>$Time,'data'=>$newLayerData];//组合
@@ -1442,6 +1650,7 @@ function handle_message($connection,$data){//收到客户端消息
                                 $templateB=$jsonData['data']['templateB'];
                                 $method=$jsonData['data']['method'];
                                 $affected=$newLDE->adjustElementOrder($elementA,$elementB,$templateA,$templateB,$method);
+                                if(count($affected)===0){break;}//空数组表示出现异常了
                                 if(count($affected['layers'])===0){break;}
                                 elseif(count($affected['layers'])===1){//受到影响的只有一个图层
                                     $LayersData=[];
@@ -1475,10 +1684,10 @@ function handle_message($connection,$data){//收到客户端消息
                                         }
                                     }
                                     if($affected['element']!==-1){
-                                        $getData=$newMDBE->getElementById($affected['element']);
+                                        $getData=$newMDE->getElementById($affected['element']);
                                         if($getData!==false){
-                                            $ElementData['details']=$getData['details'];
-                                            $ElementData['custom']=$getData['custom'];
+                                            $ElementData['details']=json_decode($getData['details'],true);
+                                            $ElementData['custom']=json_decode($getData['custom'],true);
                                             $ElementData['id']=(int)$getData['id'];
                                             $ElementData['type']=$getData['type'];
                                         }
@@ -1584,7 +1793,7 @@ function handle_message($connection,$data){//收到客户端消息
                                     $Time=creatDate();
                                     $psEndIds=[];//pick and select ids
                                     $sendJson0=null;//pickSelectEndElements
-                                    $updateResult=$newMDBE->updateElementsPhase($IDs,2);//更改数据库
+                                    $updateResult=$newMDE->updateElementsPhase($IDs,2);//更改数据库
                                     if($updateResult!=false){//成功
                                         /*
                                          *pick和select操作移除Start
@@ -1613,7 +1822,7 @@ function handle_message($connection,$data){//收到客户端消息
                                          */
                                         $changeLayerIds=[];//变动了的图层id
                                         $layersData=[];//变动了的图层数据
-                                        $elements=$newMDBE->getElementsByIds($IDs);//获取元素数据
+                                        $elements=$newMDE->getElementsByIds($IDs);//获取元素数据
                                         if($elements!==false){
                                             foreach($elements as $key=>$element){
                                                 $CUSTOM=$elements['custom'];
@@ -1674,7 +1883,6 @@ function handle_message($connection,$data){//收到客户端消息
                                 break;
                             }
                             case 'renameLayer':{
-                                print_r($jsonData);
                                 if(!$newQIR->arrayPropertiesCheck('data',$jsonData)){break;}
                                 if(!is_array($jsonData['data'])){break;}
                                 if(!$newQIR->arrayPropertiesCheck('id',$jsonData['data'])){break;}
@@ -1835,7 +2043,7 @@ function handle_message($connection,$data){//收到客户端消息
                         if(!$instruct->ckLogonAccount($Email,$RealPws)){//检查账号密码是否合法
                             break;
                         }
-                        $logUserData=$newMDBE->loginServer($Email,$RealPws);//2.数据库进行查询
+                        $logUserData=$newMDE->loginServer($Email,$RealPws);//2.数据库进行查询
                         if($logUserData!==false){
                             $connection->email=$Email;//直接给该连接加入新属性
                             $connection->userData=$logUserData;
@@ -1905,7 +2113,7 @@ function handle_message($connection,$data){//收到客户端消息
                             $connection->send($ref);
                         }
                     }else{
-                        $userData = $newMDBE->getUserData($theUserEmail);
+                        $userData = $newMDE->getUserData($theUserEmail);
                         $ref=$instruct->send_userData($userData);
                         if($ref!==false){
                             $connection->send($ref);
@@ -1916,7 +2124,7 @@ function handle_message($connection,$data){//收到客户端消息
             }
             case 'get_mapData':{//获取地图数据
                 if($activated){//必须是非匿名会话才能使用
-                    $ref=$newMDBE->getMapData();
+                    $ref=$newMDE->getMapData();
                     $sendArr=['type'=>'send_mapData','data'=>$ref];//返回数据
                     $sendJson=json_encode($sendArr,JSON_UNESCAPED_UNICODE);
                     $connection->send($sendJson);
@@ -2453,10 +2661,10 @@ $socket_worker->onWorkerStart=function($socket_worker){
     */
     $socket_worker->timer_id_5=\Workerman\Lib\Timer::add($theConfig['automateTime'],
         function(){
-            global $newMDBE;
+            global $newMDE;
             //echo "\n[自动任务]正在心跳数据库...\n";
-            $newMDBE->pdoHeartbeat();
-            $newMDBE->ensureMysqliConnection();
+            $newMDE->pdoHeartbeat();
+            $newMDE->ensureMysqliConnection();
         });
 };
 startSetting();

@@ -1016,7 +1016,7 @@ class LayerDataEdit
      * @return array Affected layer and elements id Or empty array(means fail)
      */
     function updateTemplateData($template){
-        global $newMDBE;
+        global $newMDE;
         $ref=[
             'layer'=>null,
             'deleteElements'=>[
@@ -1104,7 +1104,7 @@ class LayerDataEdit
             if($changed){
                 $this->layerData[$layerId]['structure']=array_values($this->layerData[$layerId]['structure']);//重新索引数组
                 $deleteList=array_merge($ref['deleteElements']['point'],$ref['deleteElements']['line'],$ref['deleteElements']['area'],$ref['deleteElements']['curve']);
-                $newMDBE->updateElementsPhase($deleteList,2);//删除多余的成员
+                $newMDE->updateElementsPhase($deleteList,2);//删除多余的成员
             }
         }
         if($varyDetailsRule){//应用新的属性规则
@@ -1119,14 +1119,14 @@ class LayerDataEdit
                 /*
                   * 元素属性更新 start
                   */
-                $elementData=$newMDBE->getElementById($eid);
+                $elementData=$newMDE->getElementById($eid);
                 if($elementData===false){continue;}//跳过查找不到的元素
                 $detailsData=json_decode($elementData['details'],true);//数据库内的元素数据的points/point/details/custom不再使用base64编码
                 if($detailsData===null){continue;}//跳过解析失败的元素
                 $newDetails=$this->detailsTransform($detailsData,$template['detailsRule']);
                 $encodeString=json_encode($newDetails,JSON_UNESCAPED_UNICODE);//数据库内的元素数据的points/point/details/custom不再使用base64编码
-                if($newDetails!==false){//if has change
-                    $updateStatus=$newMDBE->updateElementData(
+                if(is_array($newDetails)){//if has change
+                    $updateStatus=$newMDE->updateElementData(
                         [
                             'id'=>$eid,
                             'details'=>$encodeString
@@ -1233,7 +1233,7 @@ class LayerDataEdit
      * @return bool | array [id,members,order]
      */
     function deleteLayerAndMembers($id){
-        global $newMDBE;
+        global $newMDE;
         if(array_key_exists($id,$this->layerData)){
             if($this->layerData[$id]['type']==='order'){//如果要删除的图层是order图层则返回false
                 return false;
@@ -1242,7 +1242,7 @@ class LayerDataEdit
                 $this->layerData[$id]['hasChange']=true;//修改状态
                 $members=[];
                 foreach($this->layerData[$id]['members'] as $key=>$value){//循环遍历删除图层包含的元素
-                    $newMDBE->updateElementPhase($key,2);
+                    $newMDE->updateElementPhase($key,2);
                     $members[$key]=$value;
                 }
                 $this->removeOrderMember($id);
@@ -1352,7 +1352,7 @@ class LayerDataEdit
     /**依据属性规则转化元素的属性
      * @param $details array
      * @param $detailsRule array
-     * @return array | bool 转化失败或无变化则返回false否则返回新的属性集合
+     * @return array | bool 转化失败则返回false没有任何变化则返回true转化成功则返回新的属性数组
      */
     function detailsTransform($details,$detailsRule){
         /**
@@ -1466,7 +1466,7 @@ class LayerDataEdit
         if($hasRemove || $hasAppend || $hasReorder || $hasConversion){
             return $details;
         }else{
-            return false;
+            return true;
         }
     }
 
@@ -1524,7 +1524,7 @@ class LayerDataEdit
      * @return array Affected layers id and Affected element id || Empty array
      */
     function adjustElementOrder($elementA,$elementB,$templateA,$templateB,$method){
-        global $newMDBE;
+        global $newMDE;
         $elementA=(int)$elementA;
         $elementB=(int)$elementB;
         $ref=[
@@ -1535,10 +1535,10 @@ class LayerDataEdit
         $layerB=null;
         if(array_key_exists($templateA,$this->templateLink)){
         $layerA=$this->templateLink[$templateA]['layerId'];
-        }else{return [];}
+        }else{echo "\nLDE异常041\n";return [];}
         if(array_key_exists($templateB,$this->templateLink)){
         $layerB=$this->templateLink[$templateB]['layerId'];
-        }else{return [];}
+        }else{echo "\nLDE异常042\n";return [];}
         $cross=$layerA===$layerB;
         if($cross){//本组内进行调整顺序
             $newStructure=$this->arrayReorder($this->layerData[$layerA]['structure'],$elementA,$elementB,$method);
@@ -1563,23 +1563,34 @@ class LayerDataEdit
                 $bTemplateData=$this->layerData[$bLayerId]['structure'][1]['template'];
             }
             else{
-                return [];
+                echo "\nLDE异常043\n";return [];
             }
-            $aElementData=$newMDBE->getElementById($elementA);
-            if($aElementData===false){return [];}//查询数据失败返回空
+            $aElementData=$newMDE->getElementById($elementA);
+            if($aElementData===false){echo "\nLDE异常044\n";return [];}//查询数据失败返回空
             $aType=$aElementData['type'];
             $aDetails=json_decode($aElementData['details'],true);
             $aCustom=json_decode($aElementData['custom'],true);
-            if($aDetails===null){return [];}//解析失败返回空
-            if($aCustom===null){return [];}//解析失败返回空
-            if($bTemplateData['typeRule'][$aType]!==true){return [];}//b图层不允许a元素类型加入则返回空
-            $newDetails=$this->detailsTransform($aDetails,$bTemplateData['detailsRule']);
-            if($newDetails!==false){//if has change
+            if($aDetails===null){echo "\nLDE异常045\n";return [];}//解析失败返回空
+            if($aCustom===null){echo "\nLDE异常046\n";return [];}//解析失败返回空
+            if($bTemplateData['typeRule'][$aType]!==true){echo "\nLDE异常047-不允许的操作\n";return [];}//b图层不允许a元素类型加入则返回空
+            $newDetails=$this->detailsTransform($aDetails,$bTemplateData['detailsRule']);//true false array
+            if(is_array($newDetails)){//if has change 发生了属性变化
                 $aCustom['tmpId']=$templateB;//change tmp id
-                $updateStatus=$newMDBE->updateElementData(
+                $updateStatus=$newMDE->updateElementData(
                     [
                         'id'=>$elementA,
                         'details'=>json_encode($newDetails,JSON_UNESCAPED_UNICODE),
+                        'custom'=>json_encode($aCustom,JSON_UNESCAPED_UNICODE)
+                    ]
+                );
+                if($updateStatus){
+                    $ref['element']=$elementA;
+                }
+            }elseif($newDetails===true){//没有发生任何属性的变动，但仍然需要修改tmpId
+                $aCustom['tmpId']=$templateB;//change tmp id
+                $updateStatus=$newMDE->updateElementData(
+                    [
+                        'id'=>$elementA,
                         'custom'=>json_encode($aCustom,JSON_UNESCAPED_UNICODE)
                     ]
                 );
@@ -1874,7 +1885,85 @@ WHERE id=" . $id;
     /**更新图层数据到数据库(定期运行定时运行)
      * @return bool
      */
+    function renewalLayerDataSqlite(){
+        if(__DATABASE_NAME__==='mysql'){
+            return $this->renewalLayerData();
+        }
+        global $newJDT;
+        $sqlite_db = __DIR__ . '/../tools/SQLite/data.sqlite'; // SQLite 数据库文件路径
+        $linkSqlite = new PDO("sqlite:$sqlite_db");
+        $linkSqlite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        if(!$linkSqlite){
+            echo "\n[自动任务]无法更新图层数据，因为连接sqlite数据库失败\n";
+            return false;
+        }
+        foreach($this->layerData as $key=>$item){
+            if($item['hasChange']===false){continue;}
+            $id=$item['id'];
+            $type=$item['type'];
+            $members=$item['members'];
+            $structure=$item['structure'];
+            $phase=$item['phase'];
+            if($type!=='order'){//普通图层
+                $members=json_encode($members,JSON_FORCE_OBJECT);
+                $structure=$newJDT->jsonPack($structure);
+            }else{
+                $members=$newJDT->jsonPack($members);
+                $structure="";
+            }
+            $searchSQL = "SELECT id FROM map_0_layer WHERE id = :id";
+            $stmt = $linkSqlite->prepare($searchSQL);
+            $stmt->bindParam(':id', $id);
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $count=0;
+            if($row!==false){
+                $count=count($row);
+            }
+            if($count>0){//更新数据
+                $updateSQL = "UPDATE map_0_layer SET members = :value1, structure = :value2, phase = :value3 WHERE id = :id";
+                $stmt2 = $linkSqlite->prepare($updateSQL);
+                $stmt2->bindParam(':value1', $members);
+                $stmt2->bindParam(':value2', $structure);
+                $stmt2->bindParam(':value3', $phase,PDO::PARAM_INT);
+                $stmt2->bindParam(':id', $id,PDO::PARAM_INT);
+                $stmt2->execute();
+                if($stmt2->rowCount()>0){
+                    $this->layerData[$key]['hasChange']=false;
+                    $this->updateCache();
+                    echo "\n[自动任务]更新图层(".$type.$id.")数据成功\n";
+                }else{
+                    echo "\n[自动任务]更新图层(".$type.$id.")数据失败\n";
+                }
+            }
+            else{//插入数据
+                $insertSQL = "INSERT INTO map_0_layer (id, type, members, structure, phase) VALUES (:value1, :value2, :value3, :value4, :value5)";
+                $stmt3 = $linkSqlite->prepare($insertSQL);
+                $stmt3->bindParam(':value1', $id,PDO::PARAM_INT);
+                $stmt3->bindParam(':value2', $type,PDO::PARAM_STR);
+                $stmt3->bindParam(':value3', $members,PDO::PARAM_STR);
+                $stmt3->bindParam(':value4', $structure,PDO::PARAM_STR);
+                $stmt3->bindParam(':value5', $phase,PDO::PARAM_INT);
+                $stmt3->execute();
+                if($stmt3->rowCount()>0){
+                    $this->layerData[$key]['hasChange']=false;
+                    $this->updateCache();
+                    echo "\n[自动任务]新增图层(".$type.$id.")数据成功\n";
+                }else{
+                    echo "\n[自动任务]新增图层(".$type.$id.")数据失败\n";
+                }
+            }
+        }
+        return true;
+    }
+
+    /**更新图层数据到数据库(定期运行定时运行)
+     * @return bool
+     */
     function renewalLayerData(){
+        if(__DATABASE_NAME__==='sqlite'){
+            return $this->renewalLayerDataSqlite();
+        }
         global $newJDT,$mysql_public_server_address,$mysql_root_password,$mysql_public_layer_name,$mysql_public_db_name;
         $conn=mysqli_connect($mysql_public_server_address,'root',$mysql_root_password,$mysql_public_db_name);
         mysqli_set_charset($conn,"utf8");//设置连接时的字符编码
@@ -1931,8 +2020,8 @@ WHERE id=" . $id;
      * @return bool
      */
     function buildLayerData(){
-        global $newMDBE,$newJDT;
-        $layers=$newMDBE->getAllLayerData();
+        global $newMDE,$newJDT;
+        $layers=$newMDE->getAllLayerData();
         $maxId=0;
         if($layers!==false){
             $len=count($layers);

@@ -1,9 +1,15 @@
 <?php
 /**
+ * This script is used to store OMD data into your database
+ *  precondition:
+ * 1. There needs to be an OMD file with a version not lower than 1.0. Additionally, you need to rename this file to 'data.omd' and place it in the OMD folder
+ * 2. You need to enter the database root password
+ **/
+/**
  * 所需变量
  */
 $Mysqli=null;
-echo "请输入密码：";
+echo "请输入mysql root密码：";
 $RootPassword = trim(fgets(STDIN));
 $DatabaseName='map';
 $MapSerial='0';

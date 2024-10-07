@@ -1,6 +1,6 @@
 <?php
 function getCreateMapDatabaseSql($mysql_public_db_name){
-    return <<<ETXG
+return <<<ETXGX
 FLUSH PRIVILEGES;
 CREATE DATABASE `$mysql_public_db_name` DEFAULT CHARACTER
 SET utf8 COLLATE utf8_general_ci; FLUSH PRIVILEGES;
@@ -56,16 +56,94 @@ SET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=Dynamic;
 SET FOREIGN_KEY_CHECKS=1;
 SET FOREIGN_KEY_CHECKS=1;
 INSERT INTO `map_0_layer` VALUES (1,'order','[2]','',1);
-INSERT INTO `map_0_layer` VALUES (2,'group','WzBd','WyJkZWZhdWx0IGxheWVyIix7InRlbXBsYXRlIjp7ImlkIjoiZGVmYXVsdGxheWVyaWQiLCJsb2NrZWQiOmZhbHNlLCJtb2RpZnkiOiIyMDIwLTAxLTAxVDAwOjAwOjAwIiwibmFtZSI6InRlbXBsYXRlIiwiZXhwbGFpbiI6Im5vbmUiLCJjcmVhdG9yIjoicm9vdChyb290QGxvY2FsaG9zdCkiLCJ0eXBlUnVsZSI6eyJwb2ludCI6dHJ1ZSwibGluZSI6dHJ1ZSwiYXJlYSI6dHJ1ZSwiY3VydmUiOnRydWV9LCJkZXRhaWxzUnVsZSI6W3siZGVmYXVsdCI6Ilx1MjYwZHR1bmtub3duIiwibmFtZSI6Im5hbWUiLCJzZXQiOmZhbHNlLCJ0eXBlIjoidGV4dCJ9XSwiY29sb3JSdWxlIjp7ImJhc2lzIjoiIiwidHlwZSI6IiIsImNvbmRpdGlvbiI6W119LCJ3aWR0aFJ1bGUiOnsiYmFzaXMiOiIiLCJ0eXBlIjoiIiwiY29uZGl0aW9uIjpbXX19fV0=',1);
+INSERT INTO `map_0_layer` VALUES (2,'group','{0:0}','["default layer",{"template":{"id":"defaultlayerid","locked":false,"modify":"2020-01-01T00:00:00","name":"template","explain":"none","creator":"root(root@localhost)","typeRule":{"point":true,"line":true,"area":true,"curve":true},"detailsRule":[{"default":"☍tunknown","name":"name","set":false,"type":"text"}],"colorRule":{"basis":"","type":"","condition":[]},"widthRule":{"basis":"","type":"","condition":[]}}}]',1);
 FLUSH PRIVILEGES;
-ETXG;
+ETXGX;
 }
 
 function getGrantPublicAccountPermissionsSql($mysql_public_db_name,$mysql_public_user,$mysql_public_server_hostname){
-    return <<<ETXG
+return <<<ETXGX
 FLUSH PRIVILEGES;
 GRANT SELECT,INSERT,DELETE,
 UPDATE ON $mysql_public_db_name.*TO '$mysql_public_user'@'$mysql_public_server_hostname';
 FLUSH PRIVILEGES;
-ETXG;
+ETXGX;
+}
+
+function getCreateAccountDataTableSqlite(){
+return <<<ETXGX
+CREATE TABLE account_data (
+user_email varchar(255) NOT NULL,
+user_name varchar(255) NOT NULL,
+pass_word varchar(255) NOT NULL,
+map_layer int(11),
+default_a1 varchar(255),
+save_point TEXT,
+user_qq varchar(255),
+head_color varchar(6),
+PRIMARY KEY (user_email)
+)
+ETXGX;
+}
+
+function getCreateMap0DataTableSqlite(){
+return <<<ETXGX
+CREATE TABLE map_0_data (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+type varchar(12) NOT NULL,
+points TEXT NOT NULL,
+point varchar(255) NOT NULL,
+color varchar(255) DEFAULT NULL,
+phase int(1) NOT NULL,
+width int(11) DEFAULT NULL,
+child_relations TEXT,
+father_relation varchar(255) DEFAULT NULL,
+child_nodes TEXT,
+father_node varchar(255) DEFAULT NULL,
+details TEXT,
+custom TEXT
+)
+ETXGX;
+}
+
+function getCreateMap0LayerTableSqlite(){
+return <<<ETXGX
+CREATE TABLE map_0_layer (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+type varchar(255) NOT NULL,
+members TEXT NOT NULL,
+structure TEXT NOT NULL,
+phase int(1) NOT NULL
+)
+ETXGX;
+}
+
+function getInsertDefaultAccountSql(){
+return <<<ETXGX
+INSERT INTO account_data(
+user_email, user_name, pass_word, map_layer, default_a1, save_point, user_qq, head_color
+) VALUES (
+'administrators@a.com', 'administrators', 'administrators', 0, '{x:0,y:0}', NULL, '1000001', '3399ff'
+)
+ETXGX;
+}
+
+function getInsertDefaultOrderSql(){
+return <<<ETXGX
+INSERT INTO map_0_layer(
+id, type, members, structure, phase
+) VALUES (
+1, 'order', '[2]', '', 1
+)
+ETXGX;
+}
+
+function getInsertDefaultGroupSql(){
+return <<<ETXGX
+INSERT INTO map_0_layer(
+id, type, members, structure, phase
+) VALUES (
+2, 'group', '[0]', '["default layer",{"template":{"id":"defaultlayerid","locked":false,"modify":"2020-01-01T00:00:00","name":"template","explain":"none","creator":"root(root@localhost)","typeRule":{"point":true,"line":true,"area":true,"curve":true},"detailsRule":[{"default":"☍tunknown","name":"name","set":false,"type":"text"}],"colorRule":{"basis":"","type":"","condition":[]},"widthRule":{"basis":"","type":"","condition":[]}}}]', 1
+)
+ETXGX;
 }

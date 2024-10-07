@@ -8,3 +8,4 @@
 /config/*
 workerman.log
 data.omd
+data.sqlite
