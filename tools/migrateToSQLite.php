@@ -41,18 +41,19 @@ try {
         print_r("\n");
         print_r("\n");
         // 去除 MySQL 特有的排序规则和引擎定义
-        $createTableStmt = str_replace('ENGINE=InnoDB', '', $createTableStmt);
-        $createTableStmt = preg_replace('/AUTO_INCREMENT=\d+ /', '', $createTableStmt);
-        $createTableStmt = preg_replace('/AUTO_INCREMENT/', '', $createTableStmt);  // 另一种形式的 AUTO_INCREMENT
-        $createTableStmt = preg_replace('/COLLATE\s+\w+/', '', $createTableStmt);  // 移除 COLLATE 排序规则
-        $createTableStmt = preg_replace('/COMMENT\s+\'[^\']*\'/', '', $createTableStmt);  // 移除 COMMENT
-        $createTableStmt = preg_replace('/USING\s+\w+/', '', $createTableStmt);  // 移除 USING 部分
-        $createTableStmt = preg_replace('/DEFAULT CHARSET=\w+/', '', $createTableStmt);  // 移除 DEFAULT CHARSET
-        $createTableStmt = preg_replace('/ROW_FORMAT=DYNAMIC/', '', $createTableStmt);  // 移除 ROW_FORMAT
-        $createTableStmt = str_replace('mediumtext', 'TEXT', $createTableStmt); // 替换 mediumtext 为 TEXT
-        $createTableStmt = preg_replace('/DEFAULT\s+\'[^\']*\'/', '', $createTableStmt);  // 移除字符串 DEFAULT 值
-        $createTableStmt = preg_replace('/DEFAULT\s+CURRENT_TIMESTAMP/', '', $createTableStmt);  // 移除 CURRENT_TIMESTAMP 默认值
-        $createTableStmt = preg_replace('/COLLATE=\w+/', '', $createTableStmt);
+        $createTableStmt = preg_replace('/ENGINE=InnoDB/i', '', $createTableStmt);
+        $createTableStmt = preg_replace('/AUTO_INCREMENT=\d+ /i', '', $createTableStmt);
+        $createTableStmt = preg_replace('/AUTO_INCREMENT/i', '', $createTableStmt);  // 另一种形式的 AUTO_INCREMENT
+        $createTableStmt = preg_replace('/COLLATE\s+\w+/i', '', $createTableStmt);  // 移除 COLLATE 排序规则
+        $createTableStmt = preg_replace('/COMMENT\s+\'[^\']*\'/i', '', $createTableStmt);  // 移除 COMMENT
+        $createTableStmt = preg_replace('/USING\s+\w+/i', '', $createTableStmt);  // 移除 USING 部分
+        $createTableStmt = preg_replace('/DEFAULT CHARSET=\w+/i', '', $createTableStmt);  // 移除 DEFAULT CHARSET
+        $createTableStmt = preg_replace('/ROW_FORMAT=DYNAMIC/i', '', $createTableStmt);  // 移除 ROW_FORMAT
+        $createTableStmt = preg_replace('/DEFAULT\s+\'[^\']*\'/i', '', $createTableStmt);  // 移除字符串 DEFAULT 值
+        $createTableStmt = preg_replace('/DEFAULT\s+CURRENT_TIMESTAMP/i', '', $createTableStmt);  // 移除 CURRENT_TIMESTAMP 默认值
+        $createTableStmt = preg_replace('/COLLATE=\w+/i', '', $createTableStmt);
+        $createTableStmt = preg_replace('/mediumtext/i', 'text', $createTableStmt); // 替换 mediumtext 为 TEXT
+        $createTableStmt = preg_replace('/bigint\(20\)/i', 'integer', $createTableStmt);// 改bigint为INTEGER，INTEGER可以自增
         $createTableStmt = str_replace('`', '', $createTableStmt); // 去除反引号
 
         print_r("\n");

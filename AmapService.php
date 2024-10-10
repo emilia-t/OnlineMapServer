@@ -8,7 +8,7 @@ ini_set('extension', 'pdo_mysql');//启用PDO
 /**
 </php-config>
  **/
-$Version = '0.6.5';
+$Version = '0.7';
 ################Script initial execution################
 require 'config/Server_config.php';
 require 'Aconst.php';
@@ -51,7 +51,7 @@ function uploadCacheSqlite(){
         echo "成功连接到 SQLite 数据库！";
     } catch (PDOException $e) {
         echo "数据库连接失败: " . $e->getMessage();
-        exit("[异常退出]缓存数据无法上传至数据库，因为连接sqlite数据库失败\n");
+        exit(__LANGUAGE__==='chinese'?"[异常退出]缓存数据无法上传至数据库，因为连接sqlite数据库失败\n":"[Exception exit] Cache data cannot be uploaded to the database because the connection to the SQLite database failed\n");
     }
     foreach($legacyData as $key=>$item){
         if($item['hasChange']===false){continue;}
@@ -159,7 +159,7 @@ WHERE id=" . $id;
     $conn=mysqli_connect($mysql_public_server_address,'root',$mysql_root_password,$mysql_public_db_name);
     if(!$conn){
         mysqli_close($conn);
-        exit("[异常退出]缓存数据无法上传至数据库，因为root连接数据库失败\n");
+        exit(__LANGUAGE__==='chinese'?"[异常退出]缓存数据无法上传至数据库，因为root连接数据库失败\n":"[Exception exit] Cache data cannot be uploaded to the database because root connection to the database failed\n");
     }
     foreach($legacyData as $key=>$item){
         if($item['hasChange']===false){continue;}
@@ -247,6 +247,7 @@ function createSqliteDatabase() {
     $dbFilePath = './tools/SQLite/data.sqlite'; // 数据库文件地址
     // 1. 检查 "./tools/SQLite/data.sqlite" 文件是否存在，如果存在则返回 false
     if (file_exists($dbFilePath)) {
+        echo __LANGUAGE__==='chinese'?"数据库创建失败: 因为数据库文件已经存在\n":"Database creation failed: because the database file already exists\n";
         return false;
     }
     try {
