@@ -920,7 +920,7 @@ class LayerDataEdit
                 if($this->typeof($arr[$i]['method'])!=='string')return 44100+$i+1;
                 if(!$this->isAllowMethod($cType,$arr[$i]['method']))return 44200+$i+1;
 
-                if(!array_key_exists('value',$arr[$i],))return 45000+$i+1;
+                if(!array_key_exists('value',$arr[$i]))return 45000+$i+1;
                 if(!$this->isAllowValueTyp($cType,$arr[$i]['value']))return 45100+$i+1;
                 if($this->typeof($arr[$i]['value'])==='string'){//rule(E)
                     if(mb_strlen($arr[$i]['value'],'UTF-8')>100)return 45200+$i+1;
