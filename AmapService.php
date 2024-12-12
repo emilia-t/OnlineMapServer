@@ -61,10 +61,10 @@ function uploadCacheSqlite(){
         $structure=$item['structure'];
         $phase=$item['phase'];
         if($type!=='order'){//普通图层
-            $members="'".json_encode($members,JSON_UNESCAPED_UNICODE)."'";
-            $structure="'".json_encode($structure,JSON_UNESCAPED_UNICODE)."'";
+            $members=json_encode($members,JSON_FORCE_OBJECT);
+            $structure=json_encode($structure,JSON_UNESCAPED_UNICODE);
         }else{
-            $members="'".json_encode($members,JSON_UNESCAPED_UNICODE)."'";
+            $members=json_encode($members,JSON_UNESCAPED_UNICODE);
             $structure='""';
         }
         $searchSql="SELECT id FROM map_0_layer WHERE id={$id}";
@@ -1293,7 +1293,7 @@ function handle_message($connection,$data){//收到客户端消息
                                     $basicStructure['id']=$jsonData['data']['id'];
                                     $mysqlStructure['id']=$jsonData['data']['id'];
                                 }else{
-                                    echo '所更新的id包含非数字字符';
+                                    echo '所更新的id包含非数字字符'."\n";
                                     break;
                                 }
                                 if(!$newQIR->arrayPropertiesCheck('type',$jsonData['data'])){break;}//2.7检查type是否存在
@@ -1301,7 +1301,7 @@ function handle_message($connection,$data){//收到客户端消息
                                     $basicStructure['type']=$jsonData['data']['type'];
                                     $mysqlStructure['type']=$jsonData['data']['type'];
                                 }else{
-                                    echo '所更新的id元素类型不符标准';
+                                    echo '所更新的id元素类型不符标准'."\n";
                                     break;
                                 }
                                 if(!$newQIR->arrayPropertiesCheck('changes',$jsonData['data'])){break;}//3.检查changes是否存在
@@ -1313,7 +1313,7 @@ function handle_message($connection,$data){//收到客户端消息
                                     }
                                 }
                                 if($newQIR->arrayPropertiesCheck('width',$jsonData['data']['changes'])){//6.检查是否存在width，并检查是否为数字
-                                    if($newQIR->digitalCheck($jsonData['data']['changes']['width'])){//6.1检查是否是数字,，存在则检查
+                                    if($newQIR->digitalCheck($jsonData['data']['changes']['width'])){//6.1检查是否是数字，存在则检查
                                         $basicStructure['width']=$jsonData['data']['changes']['width'];
                                         $mysqlStructure['width']=$jsonData['data']['changes']['width'];
                                     }
@@ -1338,8 +1338,43 @@ function handle_message($connection,$data){//收到客户端消息
                                     $custom=$jsonData['data']['changes']['custom'];
                                 }
                                 /*全部检查完毕
-                                  *打包$details custom
+                                  *应用元素的模板规则
                                   */
+                                if(isset($jsonData['data']['changes']['details'])){//在更新元素属性时应用模板规则
+                                    $elementId=$jsonData['data']['id'];
+                                    $elementData=$newMDE->getElementById($elementId);
+                                    if($elementData===false){//无法查询到该元素的数据
+                                        echo '所更新的元素在数据库中不存在，此元素将不会产生任何变动id:'.$elementId."\n";
+                                        break;
+                                    }
+                                    $elementData['custom']=json_decode($elementData['custom'],true);
+                                    if($newQIR->arrayPropertiesCheck('tmpId',$elementData['custom'])===false){
+                                        echo '所更新的元素未使用任何模板，此元素将不会产生任何变动id:'.$elementId."\n";
+                                        break;
+                                    }else{
+                                        $templateId=$elementData['custom']['tmpId'];
+                                        $template=$newLDE->getTemplateById($templateId);
+                                        if($template===false){
+                                            echo '所更新的元素引用的模板在地图中不存在，此元素将不会产生任何变动id:'.$elementId."\n";
+                                            break;
+                                        }else{
+                                            $matchColor=$newLDE->ruleMatchByColor($template['colorRule'],$jsonData['data']['changes']['details']);
+                                            $matchWidth=$newLDE->ruleMatchByWidth($template['widthRule'],$jsonData['data']['changes']['details']);
+                                            if($matchColor!=='error'){
+                                                $color=substr($matchColor,1);//移除#前缀
+                                                $basicStructure['color']=$color;//更换颜色
+                                                $mysqlStructure['color']=$color;
+                                            }
+                                            if($matchWidth!=='error'){
+                                                $basicStructure['width']=$matchWidth;//更换宽度
+                                                $mysqlStructure['width']=$matchWidth;
+                                            }
+                                        }
+                                    }
+                                }
+                                /*模板应用完毕
+                                 *打包$details custom
+                                 */
                                 if(count($details)!=0){
                                     $basicStructure['details']=$details;
                                     $mysqlStructure['details']=$newJDT->jsonPack($details);

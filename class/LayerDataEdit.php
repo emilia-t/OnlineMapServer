@@ -44,6 +44,7 @@ class LayerDataEdit
         'area'=>3,
         'curve'=>4
     ];
+    private $dataTypeList=['number','time','date','datetime','percent','list','text','bool'];
     private $lastLayerId=0;
     private $layerDataCache=null;
     public function __construct($language){
@@ -538,7 +539,7 @@ class LayerDataEdit
                 if($this->typeof($value)!=='string')return false;
                 return $this->isValidDatetime($value);
             }
-            case 'data':{
+            case 'date':{
                 if($this->typeof($value)!=='string')return false;
                 return $this->isValidDate($value);
             }
@@ -2069,6 +2070,480 @@ WHERE id=" . $id;
         //print_r($this->templateLink);
         return true;
     }
+
+    /**依据模板id返回模板数据
+     * @param $tmpId | string
+     * @return false | array
+     */
+    function getTemplateById($tmpId){
+        if(isset($this->templateLink[$tmpId])){
+            $layerId=$this->templateLink[$tmpId]['layerId'];
+            if(!isset($this->layerData[$layerId])){return false;}
+            if(!isset($this->layerData[$layerId]['structure'])){return false;}
+            if(!isset($this->layerData[$layerId]['structure'][1])){return false;}
+            $customData=$this->layerData[$layerId]['structure'][1];
+            if($customData===null){return false;}
+            if(!is_array($customData)){return false;}
+            if(!isset($customData['template'])){return false;}
+            if(!is_array($customData['template'])){return false;}
+            return $customData['template'];
+        }else{
+            return false;
+        }
+    }
+
+    /**依据宽度规则与元素属性返回匹配的宽度
+     *  如果匹配到了规则则返回对应的宽度
+     *  如果无法匹配任何规则则返回 2
+     *  如果产生了错误则返回"error"
+     * @param $widthRule | array
+     * @param $details | array
+     * @return int | string
+     */
+    function ruleMatchByWidth($widthRule,$details){
+        #1.检查widthRule的condition数量
+        if(!is_array($widthRule['condition'])){return 'error';}//必须为数组
+        if(count($widthRule['condition'])===0){return 2;}//空的规则集则返回2
+        #2.检查widthRule的basis和type
+        if(!is_string($widthRule['basis'])){return 'error';}//必须为字符串
+        if($widthRule['basis']===''){return 'error';}//不可以为空字符
+        if(!is_string($widthRule['type'])){return 'error';}//必须为字符串
+        if(!in_array($widthRule['type'],$this->dataTypeList)){return 'error';}//只允许这几种数据类型
+        #3.检查details中是否存在widthRule的basis属性
+        $detail=['key'=>'','value'=>''];//需要进行匹配的单条元素属性
+        $find=false;
+        $basis=$widthRule['basis'];
+        foreach($details as $item){
+            if($item['key']===$basis){
+                $detail['key']=$item['key'];
+                $detail['value']=$item['value'];
+                $find=true;
+                break;
+            }
+        }
+        if(!$find){
+            return 'error';//宽度规则所依据的元素属性不存在
+        }
+        #4.从前往后(0->n)逐一匹配每条规则直到匹配到第一个符合的规则并返回宽度
+        foreach($widthRule['condition'] as $rule){
+            $status=$this->ruleMatch($widthRule['type'],$detail['value'],$rule['method'],$rule['value']);
+            if($status===true){
+                return $rule['width'];
+            }
+        }
+        #5.匹配不到任何规则返回2
+        return 2;
+    }
+
+    /**依据颜色规则与元素属性返回匹配的颜色
+     *  如果匹配到了规则则返回对应的颜色字符串
+     *  如果无法匹配任何规则则返回"#000000"
+     *  如果产生了错误则返回"error"
+     * @param $colorRule | array
+     * @param $details | array
+     * @return string
+     */
+    function ruleMatchByColor($colorRule,$details){
+        #1.检查colorRule的condition数量
+        if(!is_array($colorRule['condition'])){return 'error';}//必须为数组
+        if(count($colorRule['condition'])===0){return '#000000';}//空的规则集则返回#000000
+        #2.检查colorRule的basis和type
+        if(!is_string($colorRule['basis'])){return 'error';}//必须为字符串
+        if($colorRule['basis']===''){return 'error';}//不可以为空字符
+        if(!is_string($colorRule['type'])){return 'error';}//必须为字符串
+        if(!in_array($colorRule['type'],$this->dataTypeList)){return 'error';}//只允许这几种数据类型
+        #3.检查details中是否存在colorRule的basis属性
+        $detail=['key'=>'','value'=>''];//需要进行匹配的单条元素属性
+        $find=false;
+        $basis=$colorRule['basis'];
+        foreach($details as $item){
+            if($item['key']===$basis){
+                $detail['key']=$item['key'];
+                $detail['value']=$item['value'];
+                $find=true;
+                break;
+            }
+        }
+        if(!$find){
+            return 'error';//颜色规则所依据的元素属性不存在
+        }
+        #4.从前往后(0->n)逐一匹配每条规则直到匹配到第一个符合的规则并返回颜色
+        foreach($colorRule['condition'] as $rule){
+            $status=$this->ruleMatch($colorRule['type'],$detail['value'],$rule['method'],$rule['value']);
+            if($status===true){
+                return $rule['color'];
+            }
+        }
+        #5.匹配不到任何规则返回#000000
+        return '#000000';
+    }
+
+    /**
+     * 将百分比字符串转化为数字
+     * @param string $percentString 百分比字符串（如 "100%"）
+     * @return float|int 转换后的数值，非法输入返回 0
+     */
+    function percentToFloat($percentString) {
+        if(@substr_compare($percentString,'%',-1)!==0){// 检查是否以 '%' 结尾
+            return 0;//非法输入
+        }
+        $numericPart=rtrim($percentString,'%');//移除百分号
+        if(!is_numeric($numericPart)){
+            return 0;//确保数字部分是有效数字
+        }
+        return (float)$numericPart/100;
+    }
+
+
+    /**
+     * 将 datetime 字符串转化为天数和秒数，其中 "0-0-0" 为 0
+     * @param string $datetimeString | 日期时间字符串 "YYYY-MM-DDTHH:MM:SS"  || "YYYY-MM-DDTHH:MM"
+     * @return array | [ days , seconds ]
+     */
+    function datetimeToIntegers($datetimeString){
+        $timeParts = explode('T', $datetimeString);
+        $days=$this->dateToInteger($timeParts[0]);
+        $seconds=$this->timeToInteger($timeParts[1]);
+        return [$days,$seconds];
+    }
+
+    /**
+     * 判断年份是否为闰年
+     * @param int $year
+     * @return bool
+     */
+    function isLeapYear($year) {
+        return ($year % 4 === 0 && $year % 100 !== 0) || ($year % 400 === 0);
+    }
+
+    /**
+     * 将 date 字符串转化为整数，其中 "0-0-0" 为 0
+     * @param string $dateString 日期字符串 "YYYY-MM-DD"
+     * @return int
+     */
+    function dateToInteger($dateString = "0-0-0"){
+        $dateParts = explode('-', $dateString);
+        if (count($dateParts) !== 3) {
+            return 0; // 错误的日期格式返回 0
+        }
+        $year = (int)$dateParts[0];
+        $month = (int)$dateParts[1];
+        $day = (int)$dateParts[2];
+        if ($year === 0 && $month === 0 && $day === 0) {
+            return 0;
+        }
+        if ($year < 0 || $month < 1 || $month > 12 || $day < 1 || $day > 31) {
+            return 0;
+        }
+        $monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        if ($this->isLeapYear($year)) {
+            $monthDays[1] = 29; // 闰年2月天数
+        }
+        if ($day > $monthDays[$month - 1]) {// 如果天数超出当月最大值，返回 0
+            return 0;
+        }
+        $days = ($year - 1) * 365 + (int)(($year - 1) / 4) - (int)(($year - 1) / 100) + (int)(($year - 1) / 400);// 计算从公元 1 年到前一年总天数
+        for ($m = 0; $m < $month - 1; $m++) {
+            $days += $monthDays[$m];// 计算当年1月至前一个月的天数
+        }
+        $days += $day;// 加上当月的天数
+        return $days;
+    }
+
+
+    /**将time字符串转化为整数秒数 其中 "0:0" 为 0
+     * @param $timeString | string  "10:30"
+     * @return int
+     */
+    function timeToInteger($timeString="0:0") {
+        $timeParts = explode(':', $timeString);
+        $hours = isset($timeParts[0]) ? (int)$timeParts[0] : 0;
+        $minutes = isset($timeParts[1]) ? (int)$timeParts[1] : 0;
+        $seconds = isset($timeParts[2]) ? (int)$timeParts[2] : 0;
+        return $hours * 3600 + $minutes * 60 + $seconds;
+    }
+
+    /**依据元素类型与匹配方式进行匹配
+     *  ( $left  $method  $right  ? )  (  147 > 15  ? )
+     *  如果匹配成功则返回true否则返回false
+     * @param $dataType | string
+     * @param $left | any detail value
+     * @param $method | string
+     * @param $right | any rule value
+     * @return bool
+     */
+    private function ruleMatch($dataType,$left,$method,$right){
+        switch($dataType){
+            case 'number':{
+                $left=$this->Number($left);
+                $right=$this->Number($right);
+                switch($method){
+                    case 'equ':{
+                        return $left === $right;
+                        break;
+                    }
+                    case 'nequ':{
+                        return $left !== $right;
+                        break;
+                    }
+                    case 'gre':{
+                        return $left>$right;
+                        break;
+                    }
+                    case 'greq':{
+                        return $left>=$right;
+                        break;
+                    }
+                    case 'les':{
+                        return $left<$right;
+                        break;
+                    }
+                    case 'lesq':{
+                        return $left<=$right;
+                        break;
+                    }
+                    case 'mod0':{
+                        if(is_int($left) && is_int($right)){
+                            return $left%$right===0;
+                        }else{
+                            return false;
+                        }
+                        break;
+                    }
+                    case 'nmod0':{
+                        if(is_int($left) && is_int($right)){
+                            return $left%$right!==0;
+                        }else{
+                            return false;
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+            case 'percent':{
+                switch($method){
+                    case 'equ':{
+                        return $left === $right;
+                        break;
+                    }
+                    case 'nequ':{
+                        return $left !== $right;
+                        break;
+                    }
+                    case 'gre':{
+                        $leftFloat=$this->percentToFloat(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightFloat=$this->percentToFloat(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftFloat>$rightFloat;
+                        break;
+                    }
+                    case 'greq':{
+                        $leftFloat=$this->percentToFloat(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightFloat=$this->percentToFloat(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftFloat>=$rightFloat;
+                        break;
+                    }
+                    case 'les':{
+                        $leftFloat=$this->percentToFloat(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightFloat=$this->percentToFloat(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftFloat<$rightFloat;
+                        break;
+                    }
+                    case 'lesq':{
+                        $leftFloat=$this->percentToFloat(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightFloat=$this->percentToFloat(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftFloat<=$rightFloat;
+                        break;
+                    }
+                }
+                break;
+            }
+            case 'datetime':{
+                switch($method){
+                    case 'equ':{
+                        return $left === $right;
+                        break;
+                    }
+                    case 'nequ':{
+                        return $left !== $right;
+                        break;
+                    }
+                    case 'gre':{
+                        $leftInt=$this->datetimeToIntegers(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->datetimeToIntegers(mb_substr($right, 2, null, 'UTF-8'));
+                        if($leftInt[0]>$rightInt[0]){
+                            return true;
+                        }elseif($leftInt[0]<$rightInt[0]){
+                            return false;
+                        }else{
+                            return $leftInt[1]>$rightInt[1];
+                        }
+                        break;
+                    }
+                    case 'greq':{
+                        $leftInt=$this->datetimeToIntegers(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->datetimeToIntegers(mb_substr($right, 2, null, 'UTF-8'));
+                        if($leftInt[0]>=$rightInt[0] && $leftInt[1]>=$rightInt[1] ){
+                            return true;
+                        }else{
+                            return false;
+                        }
+                        break;
+                    }
+                    case 'les':{
+                        $leftInt=$this->datetimeToIntegers(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->datetimeToIntegers(mb_substr($right, 2, null, 'UTF-8'));
+                        if($leftInt[0]<$rightInt[0]){
+                            return true;
+                        }elseif($leftInt[0]>$rightInt[0]){
+                            return false;
+                        }else{
+                            return $leftInt[1]<$rightInt[1];
+                        }
+                        break;
+                    }
+                    case 'lesq':{
+                        $leftInt=$this->datetimeToIntegers(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->datetimeToIntegers(mb_substr($right, 2, null, 'UTF-8'));
+                        if($leftInt[0]<=$rightInt[0] && $leftInt[1]<=$rightInt[1] ){
+                            return true;
+                        }else{
+                            return false;
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+            case 'date':{
+                switch($method){
+                    case 'equ':{
+                        return $left === $right;
+                        break;
+                    }
+                    case 'nequ':{
+                        return $left !== $right;
+                        break;
+                    }
+                    case 'gre':{
+                        $leftInt=$this->dateToInteger(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->dateToInteger(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftInt > $rightInt;
+                        break;
+                    }
+                    case 'greq':{
+                        $leftInt=$this->dateToInteger(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->dateToInteger(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftInt >= $rightInt;
+                        break;
+                    }
+                    case 'les':{
+                        $leftInt=$this->dateToInteger(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->dateToInteger(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftInt < $rightInt;
+                        break;
+                    }
+                    case 'lesq':{
+                        $leftInt=$this->dateToInteger(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->dateToInteger(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftInt <= $rightInt;
+                        break;
+                    }
+                }
+                break;
+            }
+            case 'time':{
+                switch($method){
+                    case 'equ':{
+                        return $left === $right;
+                        break;
+                    }
+                    case 'nequ':{
+                        return $left !== $right;
+                        break;
+                    }
+                    case 'gre':{
+                        $leftInt=$this->timeToInteger(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->timeToInteger(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftInt > $rightInt;
+                        break;
+                    }
+                    case 'greq':{
+                        $leftInt=$this->timeToInteger(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->timeToInteger(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftInt >= $rightInt;
+                        break;
+                    }
+                    case 'les':{
+                        $leftInt=$this->timeToInteger(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->timeToInteger(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftInt < $rightInt;
+                        break;
+                    }
+                    case 'lesq':{
+                        $leftInt=$this->timeToInteger(mb_substr($left, 2, null, 'UTF-8'));
+                        $rightInt=$this->timeToInteger(mb_substr($right, 2, null, 'UTF-8'));
+                        return $leftInt <= $rightInt;
+                        break;
+                    }
+                }
+                break;
+            }
+            case 'list':{
+                switch($method){
+                    case 'equ':{//等于
+                        $index=strpos($left,',');
+                        if($index!==false){
+                            return substr($left,0,$index) === $right;
+                        }else{
+                            return false;
+                        }
+                        break;
+                    }
+                    case 'nequ':{//不等于
+                        $index=strpos($left,',');
+                        if($index!==false){
+                            return substr($left,0,$index) !== $right;
+                        }else{
+                            return false;
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+            case 'text':{
+                switch($method){
+                    case 'equ':{
+                        return $left === $right;
+                        break;
+                    }
+                    case 'nequ':{
+                        return $left !== $right;
+                        break;
+                    }
+                }
+                break;
+            }
+            case 'bool':{
+                switch($method){
+                    case 'equ':{
+                        return $left === $right;
+                        break;
+                    }
+                    case 'nequ':{
+                        return $left !== $right;
+                        break;
+                    }
+                }
+                break;
+            }
+            default:{
+                return false;
+            }
+        }
+    }
+
     /**
      * 辅助函数 Helper functions
      * */
