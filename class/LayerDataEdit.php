@@ -524,13 +524,17 @@ class LayerDataEdit
         return true;
     }
     function isColor16($color){//检测一个字符串是否是标准的16进制颜色-正确则返回true
-        $regex='/^#?([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/';
+        $regex='/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/';
         return preg_match($regex,$color)===1;
     }
     function isAllowValueTyp($type,$value){//依据type检测value(或default)是否是正确的type类型-正确则返回true
         switch ($type){
             case 'text':{
-                return $this->typeof($value)==='string';
+                if(is_string($value)){
+                    return mb_substr($value,0,2,'UTF-8')==='☍t';
+                }else{
+                    return false;
+                }
             }
             case 'number':{
                 return $this->typeof($value)==='number';
@@ -1144,6 +1148,82 @@ class LayerDataEdit
                 /*
                  * 元素属性更新 end
                  */
+            }
+        }
+        if($varyColorRule || $varyWidthRule){//依据新颜色、宽度规则修改元素的颜色、宽度
+            $typeNumString=[1=>'point',2=>'line',3=>'area',4=>'curve'];
+            foreach($this->layerData[$layerId]['members'] as $eid=>$eType){
+                if($eType==0){continue;}
+                $elementData=$newMDE->getElementById($eid);
+                if($elementData===false){continue;}//跳过查找不到的元素
+                $detailsData=json_decode($elementData['details'],true);//数据库内的元素数据的points/point/details/custom不再使用base64编码
+                if($detailsData===null){continue;}//跳过解析失败的元素
+                /*
+                  * 元素颜色更新 start
+                  */
+                if($varyColorRule){
+                    $matchColor=$this->ruleMatchByColor($template['colorRule'],$detailsData);
+                    if($matchColor!=='#'.$elementData['color']){//匹配到的颜色与原始颜色不一致
+                        if($matchColor!=='error'){
+                            $color=substr($matchColor,1);//移除#前缀
+                            $updateStatus=$newMDE->updateElementData(['id'=>$eid,'color'=>$color]);//上传数据库
+                            if($updateStatus){//上传数据库成功
+                                $length=count($ref['updateElements']);
+                                $found=false;//是否已经在updateElements数组内创建
+                                for($n=0;$n<$length;$n++){
+                                    if($ref['updateElements'][$n]['id']===$eid){//已创建
+                                        $ref['updateElements'][$n]['color']=$color;//附加color属性
+                                        $found=true;
+                                        break;
+                                    }
+                                }
+                                if($found===false){//未创建
+                                    $color=substr($matchColor,1);//移除#前缀
+                                    $ref['updateElements'][]=[
+                                        'id'=>$eid,
+                                        'type'=>$typeNumString[$eType],
+                                        'color'=>$color
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+                /*
+                  * 元素颜色更新 end
+                  */
+                /*
+                  * 元素宽度更新 start
+                  */
+                if($varyWidthRule){
+                    $matchWidth=$this->ruleMatchByWidth($template['widthRule'],$detailsData);
+                    if($matchWidth!==$elementData['width']){//匹配到的宽度与原始宽度不一致
+                        if($matchWidth!=='error'){
+                            $updateStatus=$newMDE->updateElementData(['id'=>$eid,'width'=>$matchWidth]);//上传数据库
+                            if($updateStatus){//上传数据库成功
+                                $length=count($ref['updateElements']);
+                                $found=false;//是否已经在updateElements数组内创建
+                                for($n=0;$n<$length;$n++){
+                                    if($ref['updateElements'][$n]['id']===$eid){//已创建
+                                        $ref['updateElements'][$n]['width']=$matchWidth;//附加width属性
+                                        $found=true;
+                                        break;
+                                    }
+                                }
+                                if($found===false){//未创建
+                                    $ref['updateElements'][]=[
+                                        'id'=>$eid,
+                                        'type'=>$typeNumString[$eType],
+                                        'width'=>$matchWidth
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+                /*
+                  * 元素宽度更新 end
+                  */
             }
         }
         return $ref;
@@ -2071,6 +2151,54 @@ WHERE id=" . $id;
         return true;
     }
 
+    /**依据模板id检查此模板是否存在颜色或宽度规则
+     *  返回数组，其中第一个值为代表colorRule，第二个值代表widthRule
+     * @param $tmpId | string
+     * @return array | [bool , bool]
+     */
+    function hasColorWidthRuleById($tmpId){
+        $ref=[false,false];
+        if(isset($this->templateLink[$tmpId])){
+            $layerId=$this->templateLink[$tmpId]['layerId'];
+            if(!isset($this->layerData[$layerId])){return $ref;}
+            if(!isset($this->layerData[$layerId]['structure'])){return $ref;}
+            if(!isset($this->layerData[$layerId]['structure'][1])){return $ref;}
+            $customData=$this->layerData[$layerId]['structure'][1];
+            if($customData===null){return $ref;}
+            if(!is_array($customData)){return $ref;}
+            if(!isset($customData['template'])){return $ref;}
+            if(!is_array($customData['template'])){return $ref;}
+            if($customData['template']['colorRule']['basis']===''){
+                $ref[0]=false;//空的颜色依据
+            }
+            else{
+                $ref[0]=true;
+            }
+            if(count($customData['template']['colorRule']['condition'])===0){
+                $ref[0]=false;//空的颜色依据
+            }
+            else{
+                $ref[0]=true;
+            }
+            if($customData['template']['widthRule']['basis']===''){
+                $ref[1]=false;//空的宽度依据
+            }
+            else{
+                $ref[1]=true;
+            }
+            if(count($customData['template']['widthRule']['condition'])===0){
+                $ref[1]=false;//空的宽度依据
+            }
+            else{
+                $ref[1]=true;
+            }
+            return $ref;
+        }
+        else{
+            return $ref;
+        }
+    }
+
     /**依据模板id返回模板数据
      * @param $tmpId | string
      * @return false | array
@@ -2101,14 +2229,14 @@ WHERE id=" . $id;
      * @return int | string
      */
     function ruleMatchByWidth($widthRule,$details){
-        #1.检查widthRule的condition数量
-        if(!is_array($widthRule['condition'])){return 'error';}//必须为数组
-        if(count($widthRule['condition'])===0){return 2;}//空的规则集则返回2
-        #2.检查widthRule的basis和type
+        #1.检查widthRule的basis和type
         if(!is_string($widthRule['basis'])){return 'error';}//必须为字符串
         if($widthRule['basis']===''){return 'error';}//不可以为空字符
         if(!is_string($widthRule['type'])){return 'error';}//必须为字符串
         if(!in_array($widthRule['type'],$this->dataTypeList)){return 'error';}//只允许这几种数据类型
+        #2.检查widthRule的condition数量
+        if(!is_array($widthRule['condition'])){return 'error';}//必须为数组
+        if(count($widthRule['condition'])===0){return 2;}//空的规则集则返回2
         #3.检查details中是否存在widthRule的basis属性
         $detail=['key'=>'','value'=>''];//需要进行匹配的单条元素属性
         $find=false;
@@ -2144,14 +2272,14 @@ WHERE id=" . $id;
      * @return string
      */
     function ruleMatchByColor($colorRule,$details){
-        #1.检查colorRule的condition数量
-        if(!is_array($colorRule['condition'])){return 'error';}//必须为数组
-        if(count($colorRule['condition'])===0){return '#000000';}//空的规则集则返回#000000
-        #2.检查colorRule的basis和type
+        #1.检查colorRule的basis和type
         if(!is_string($colorRule['basis'])){return 'error';}//必须为字符串
         if($colorRule['basis']===''){return 'error';}//不可以为空字符
         if(!is_string($colorRule['type'])){return 'error';}//必须为字符串
         if(!in_array($colorRule['type'],$this->dataTypeList)){return 'error';}//只允许这几种数据类型
+        #2.检查colorRule的condition数量
+        if(!is_array($colorRule['condition'])){return 'error';}//必须为数组
+        if(count($colorRule['condition'])===0){return '#000000';}//空的规则集则返回#000000
         #3.检查details中是否存在colorRule的basis属性
         $detail=['key'=>'','value'=>''];//需要进行匹配的单条元素属性
         $find=false;
