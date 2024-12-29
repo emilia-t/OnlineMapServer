@@ -8,7 +8,7 @@ ini_set('extension', 'pdo_mysql');//启用PDO
 /**
 </php-config>
  **/
-$Version = '0.7';
+$Version = '0.8';
 ################Script initial execution################
 require 'config/Server_config.php';
 require 'Aconst.php';
@@ -757,6 +757,34 @@ function handle_message($connection,$data){//收到客户端消息
                                     }
                                 }
                                 /*
+                                  *应用模板规则
+                                  */
+                                if($tmpId!=='unknown'){
+                                    $ruleStatus=$newLDE->hasColorWidthRuleById($tmpId);//[bool,bool]
+                                    $template=null;//获取模板数据
+                                    if($ruleStatus[0]===true || $ruleStatus[1]===true){
+                                        $template=$newLDE->getTemplateById($tmpId);
+                                    }
+                                    if($ruleStatus[0]===true){//颜色规则存在
+                                        $matchColor=$newLDE->ruleMatchByColor($template['colorRule'],$jsonData['data']['details']);//返回color或'error'
+                                        if($matchColor!=='error'){//匹配到颜色
+                                            $color=substr($matchColor,1);//移除#前缀
+                                            $basicStructure['color']=$color;//更换颜色
+                                            $mysqlStructure['color']=$color;
+                                        }
+                                    }
+                                    if($ruleStatus[1]===true){//宽度规则存在
+                                        $matchWidth=$newLDE->ruleMatchByWidth($template['widthRule'],$jsonData['data']['details']);//返回正整数或'error'
+                                        if($matchWidth!=='error'){//匹配到宽度
+                                            $basicStructure['width']=$matchWidth;//更换宽度
+                                            $mysqlStructure['width']=$matchWidth;
+                                        }
+                                    }
+                                }
+                                /*
+                                  *应用模板规则
+                                  */
+                                /*
                                   *封装
                                   */
                                 $basicStructure['point']=$jsonData['data']['point'];
@@ -886,6 +914,34 @@ function handle_message($connection,$data){//收到客户端消息
                                         }
                                     }
                                 }
+                                /*
+                                  *应用模板规则
+                                  */
+                                if($tmpId!=='unknown'){
+                                    $ruleStatus=$newLDE->hasColorWidthRuleById($tmpId);//[bool,bool]
+                                    $template=null;//获取模板数据
+                                    if($ruleStatus[0]===true || $ruleStatus[1]===true){
+                                        $template=$newLDE->getTemplateById($tmpId);
+                                    }
+                                    if($ruleStatus[0]===true){//颜色规则存在
+                                        $matchColor=$newLDE->ruleMatchByColor($template['colorRule'],$jsonData['data']['details']);//返回color或'error'
+                                        if($matchColor!=='error'){//匹配到颜色
+                                            $color=substr($matchColor,1);//移除#前缀
+                                            $basicStructure['color']=$color;//更换颜色
+                                            $mysqlStructure['color']=$color;
+                                        }
+                                    }
+                                    if($ruleStatus[1]===true){//宽度规则存在
+                                        $matchWidth=$newLDE->ruleMatchByWidth($template['widthRule'],$jsonData['data']['details']);//返回正整数或'error'
+                                        if($matchWidth!=='error'){//匹配到宽度
+                                            $basicStructure['width']=$matchWidth;//更换宽度
+                                            $mysqlStructure['width']=$matchWidth;
+                                        }
+                                    }
+                                }
+                                /*
+                                  *应用模板规则
+                                  */
                                 /*
                                   *封装
                                   */
@@ -1017,6 +1073,34 @@ function handle_message($connection,$data){//收到客户端消息
                                     }
                                 }
                                 /*
+                                  *应用模板规则
+                                  */
+                                if($tmpId!=='unknown'){
+                                    $ruleStatus=$newLDE->hasColorWidthRuleById($tmpId);//[bool,bool]
+                                    $template=null;//获取模板数据
+                                    if($ruleStatus[0]===true || $ruleStatus[1]===true){
+                                        $template=$newLDE->getTemplateById($tmpId);
+                                    }
+                                    if($ruleStatus[0]===true){//颜色规则存在
+                                        $matchColor=$newLDE->ruleMatchByColor($template['colorRule'],$jsonData['data']['details']);//返回color或'error'
+                                        if($matchColor!=='error'){//匹配到颜色
+                                            $color=substr($matchColor,1);//移除#前缀
+                                            $basicStructure['color']=$color;//更换颜色
+                                            $mysqlStructure['color']=$color;
+                                        }
+                                    }
+                                    if($ruleStatus[1]===true){//宽度规则存在
+                                        $matchWidth=$newLDE->ruleMatchByWidth($template['widthRule'],$jsonData['data']['details']);//返回正整数或'error'
+                                        if($matchWidth!=='error'){//匹配到宽度
+                                            $basicStructure['width']=$matchWidth;//更换宽度
+                                            $mysqlStructure['width']=$matchWidth;
+                                        }
+                                    }
+                                }
+                                /*
+                                  *应用模板规则
+                                  */
+                                /*
                                   *封装
                                   */
                                 $basicStructure['point']=$jsonData['data']['point'];
@@ -1137,8 +1221,6 @@ function handle_message($connection,$data){//收到客户端消息
                                 /*
                                   *应用模板规则
                                   */
-                                $hasColorRule=false;
-                                $hasWidthRule=false;
                                 if($tmpId!=='unknown'){
                                     $ruleStatus=$newLDE->hasColorWidthRuleById($tmpId);//[bool,bool]
                                     $template=null;//获取模板数据
