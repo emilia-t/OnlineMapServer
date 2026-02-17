@@ -21,24 +21,43 @@ function uploadCacheSqlite(){
         return uploadCache();
     }
     $filePath='./cache/layerDataCache.json';
+    $cacheDir = './cache';
+    // 确保 cache 目录存在
+    if (!is_dir($cacheDir)) {
+        // 创建目录，设置权限 0777
+        if (!mkdir($cacheDir, 0777, true)) {
+            // 创建目录失败
+            echo "[Fatal error]无法创建 cache 目录\n";
+            return 5;
+        }
+        echo "成功创建 cache 目录\n";
+    }
     $file=null;
     if(!file_exists($filePath)){//检查是否存在文件
         $file=fopen('./cache/layerDataCache.json','w+');
-        fclose($file);return 1;
+        if($file){fclose($file);}
+        return 1;
+    }else{
+
     }
     $content=file_get_contents($filePath);//获取文件内容
     if($content===false || strlen($content)===0){//文件内容为空
         $file=fopen('./cache/layerDataCache.json','w+');
-        fclose($file);return 2;
+        if($file){fclose($file);}
+        return 2;
+    }else{
+
     }
     $legacyData=json_decode($content,true);//解析文件数据
     if($legacyData===null){//解析数据失败
         $file=fopen('./cache/layerDataCache.json','w+');
-        fclose($file);return 3;
+        if($file){fclose($file);}
+        return 3;
     }
     if(!is_array($legacyData)){//数据类型错误
         $file=fopen('./cache/layerDataCache.json','w+');
-        fclose($file);return 4;
+        if($file){fclose($file);}
+        return 4;
     }
     /*
      * 上传旧数据至数据库
@@ -112,7 +131,7 @@ function uploadCacheSqlite(){
         }
     }
     $file=fopen('./cache/layerDataCache.json','w+');//清空缓存
-    fclose($file);
+    if($file){fclose($file);}
     return 10;
 }
 /**上传缓存
@@ -137,21 +156,25 @@ WHERE id=" . $id;
     $file=null;
     if(!file_exists($filePath)){//检查是否存在文件
         $file=fopen('./cache/layerDataCache.json','w+');
-        fclose($file);return 1;
+        if($file){fclose($file);}
+        return 1;
     }
     $content=file_get_contents($filePath);//获取文件内容
     if($content===false || strlen($content)===0){//文件内容为空
         $file=fopen('./cache/layerDataCache.json','w+');
-        fclose($file);return 2;
+        if($file){fclose($file);}
+        return 2;
     }
     $legacyData=json_decode($content,true);//解析文件数据
     if($legacyData===null){//解析数据失败
         $file=fopen('./cache/layerDataCache.json','w+');
-        fclose($file);return 3;
+        if($file){fclose($file);}
+        return 3;
     }
     if(!is_array($legacyData)){//数据类型错误
         $file=fopen('./cache/layerDataCache.json','w+');
-        fclose($file);return 4;
+        if($file){fclose($file);}
+        return 4;
     }
     /*
      * 上传旧数据至数据库
@@ -198,7 +221,7 @@ WHERE id=" . $id;
         }
     }
     $file=fopen('./cache/layerDataCache.json','w+');//清空缓存
-    fclose($file);
+    if($file){fclose($file);}
     mysqli_close($conn);
     return 10;
 }
@@ -597,6 +620,31 @@ function startSetting(){
     $newLDE->buildTemplateLink();//构建模板与图层关系链接
     return true;
 }
+
+/**
+ * 生成当前时间（精确到毫秒）
+ * @return string
+ */
+function creatDateMs(){
+    // 获取当前时间戳（秒和微秒）
+    $microtime = microtime(true);
+    
+    // 分解为秒和毫秒
+    $seconds = floor($microtime);
+    $milliseconds = round(($microtime - $seconds) * 1000);
+    
+    // 格式化日期时间
+    $date = getdate($seconds);
+    $mon = sprintf('%02d', $date['mon']);
+    $day = sprintf('%02d', $date['mday']);
+    $hours = sprintf('%02d', $date['hours']);
+    $minutes = sprintf('%02d', $date['minutes']);
+    $secs = sprintf('%02d', $date['seconds']);
+    $ms = sprintf('%03d', $milliseconds);
+     
+    return "{$date['year']}-{$mon}-{$day} {$hours}:{$minutes}:{$secs}.{$ms}";
+}
+
 /**与客户端连接
  * @param $connection
  * @return void
@@ -635,7 +683,12 @@ function handle_message($connection,$data){//收到客户端消息
     $nowType=$jsonData['type'];//5.处理数据
         switch ($nowType){
             case 'ping':{
-                $connection->send(json_encode(['type'=>'pong'],JSON_UNESCAPED_UNICODE));
+                $connection->send(
+                        json_encode(
+                                ['type'=>'pong','time'=>creatDateMs()],
+                                JSON_UNESCAPED_UNICODE
+                            )
+                    );
                 break;
             }
             case 'broadcast':{//广播数据

@@ -94,6 +94,17 @@ root
 
 **Please ensure that all files are granted read, write, and execute permissions before starting the service**
 
+>0.如果使用sqlite作为数据库，请启用pdo_sqlite拓展
+>
+```
+# Ubuntu/Debian
+sudo apt update
+sudo apt install php-sqlite3
+
+# 如果使用特定PHP版本（如PHP 8.1）
+sudo apt install php8.1-sqlite3
+```
+
 >1.复制空白配置文件
 >
 >1.Copy a blank configuration file
